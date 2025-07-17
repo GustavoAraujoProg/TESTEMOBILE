@@ -1054,8 +1054,11 @@
         let deviceOrientationPermissionGranted = false;
         let calibrationOffset = { alpha: 0, beta: 0, gamma: 0 };
         let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
-        let smoothFactor = 0.8;
-        let sensitivity = 2.0;
+        let previousOrientation = { alpha: 0, beta: 0, gamma: 0 };
+        let smoothFactor = 0.15; // Reduzido para movimento mais suave
+        let sensitivity = 0.8; // Reduzido para menos sensibilidade
+        let isCalibrating = false;
+        let frameCount = 0;
         
         // Dados dos cômodos
         const rooms = [
@@ -1228,12 +1231,12 @@
                     vrStatus.innerHTML = '📱 Modo VR: Ativo - Mova seu celular!';
                     
                     // Adicionar listener de orientação
-                    window.addEventListener('deviceorientation', handleDeviceOrientation);
+                    window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
                     
-                    // Calibrar automaticamente após 2 segundos
+                    // Calibrar automaticamente após 1 segundo
                     setTimeout(() => {
                         calibrateVRMobile();
-                    }, 2000);
+                    }, 1000);
                     
                     console.log('VR Mobile ativado');
                     
@@ -1256,38 +1259,94 @@
         }
 
         function handleDeviceOrientation(event) {
-            if (!vrMobileEnabled) return;
+            if (!vrMobileEnabled || isCalibrating) return;
             
-            const alpha = event.alpha || 0; // Rotação Z (compass)
-            const beta = event.beta || 0;   // Rotação X (tilt front/back)
-            const gamma = event.gamma || 0; // Rotação Y (tilt left/right)
+            // Incrementa contador de frames para suavização inicial
+            frameCount++;
+            
+            let alpha = event.alpha || 0; // Rotação Z (compass)
+            let beta = event.beta || 0;   // Rotação X (tilt front/back)
+            let gamma = event.gamma || 0; // Rotação Y (tilt left/right)
+            
+            // Normalizar valores e tratar descontinuidades
+            alpha = normalizeAngle(alpha);
+            beta = normalizeAngle(beta);
+            gamma = normalizeAngle(gamma);
             
             // Aplicar calibração
-            const calibratedAlpha = alpha - calibrationOffset.alpha;
-            const calibratedBeta = beta - calibrationOffset.beta;
-            const calibratedGamma = gamma - calibrationOffset.gamma;
+            let calibratedAlpha = normalizeAngle(alpha - calibrationOffset.alpha);
+            let calibratedBeta = normalizeAngle(beta - calibrationOffset.beta);
+            let calibratedGamma = normalizeAngle(gamma - calibrationOffset.gamma);
             
-            // Suavizar movimento
+            // Detectar saltos grandes e ignorar (antiglitch)
+            if (frameCount > 10) { // Após os primeiros frames
+                const alphaDiff = Math.abs(calibratedAlpha - previousOrientation.alpha);
+                const betaDiff = Math.abs(calibratedBeta - previousOrientation.beta);
+                const gammaDiff = Math.abs(calibratedGamma - previousOrientation.gamma);
+                
+                // Se mudança for muito brusca, ignore este frame
+                if (alphaDiff > 45 || betaDiff > 45 || gammaDiff > 45) {
+                    return;
+                }
+            }
+            
+            // Aplicar zona morta para pequenos movimentos (reduz tremor)
+            const deadZone = 0.5;
+            if (Math.abs(calibratedAlpha - currentOrientation.alpha) < deadZone) {
+                calibratedAlpha = currentOrientation.alpha;
+            }
+            if (Math.abs(calibratedBeta - currentOrientation.beta) < deadZone) {
+                calibratedBeta = currentOrientation.beta;
+            }
+            if (Math.abs(calibratedGamma - currentOrientation.gamma) < deadZone) {
+                calibratedGamma = currentOrientation.gamma;
+            }
+            
+            // Salvar orientação anterior
+            previousOrientation.alpha = calibratedAlpha;
+            previousOrientation.beta = calibratedBeta;
+            previousOrientation.gamma = calibratedGamma;
+            
+            // Suavizar movimento com interpolação mais lenta
             currentOrientation.alpha = lerp(currentOrientation.alpha, calibratedAlpha, smoothFactor);
             currentOrientation.beta = lerp(currentOrientation.beta, calibratedBeta, smoothFactor);
             currentOrientation.gamma = lerp(currentOrientation.gamma, calibratedGamma, smoothFactor);
             
-            // Aplicar rotação VR
-            updateVRMobileRotation();
-            updateVRStatus();
+            // Aplicar rotação VR apenas a cada 2 frames (reduz processamento)
+            if (frameCount % 2 === 0) {
+                updateVRMobileRotation();
+            }
+            
+            // Atualizar status a cada 10 frames
+            if (frameCount % 10 === 0) {
+                updateVRStatus();
+            }
+        }
+
+        // Nova função para normalizar ângulos e evitar saltos
+        function normalizeAngle(angle) {
+            while (angle > 180) angle -= 360;
+            while (angle < -180) angle += 360;
+            return angle;
         }
 
         function updateVRMobileRotation() {
             const { alpha, beta, gamma } = currentOrientation;
             
-            // Converter para rotações Three.js com sensibilidade
+            // Converter para radianos com sensibilidade reduzida
             const rotationXVR = -beta * sensitivity * (Math.PI / 180);
             const rotationYVR = alpha * sensitivity * (Math.PI / 180);
-            const rotationZVR = gamma * sensitivity * 0.3 * (Math.PI / 180);
             
-            // Aplicar rotações diretamente à câmera
-            targetRotationX = rotationXVR;
+            // Limitar rotação vertical para evitar inversão estranha
+            const maxVerticalRotation = Math.PI / 3; // 60 graus para cima/baixo
+            const clampedRotationX = Math.max(-maxVerticalRotation, Math.min(maxVerticalRotation, rotationXVR));
+            
+            // Aplicar rotações suavemente
+            targetRotationX = clampedRotationX;
             targetRotationY = rotationYVR;
+            
+            // Ignorar rotação Z (roll) para melhor experiência
+            // const rotationZVR = gamma * sensitivity * 0.1 * (Math.PI / 180);
         }
 
         function updateVRStatus() {
@@ -1301,25 +1360,59 @@
         function calibrateVRMobile() {
             if (!vrMobileEnabled) return;
             
+            isCalibrating = true;
+            frameCount = 0;
+            
             const vrStatus = document.getElementById('vr-status');
             vrStatus.classList.add('calibrating');
-            vrStatus.innerHTML = '🎯 Calibrando... Mantenha o celular estável';
+            vrStatus.innerHTML = '🎯 Calibrando... Mantenha o celular estável (3s)';
             
-            // Capturar orientação atual como referência
-            window.addEventListener('deviceorientation', (event) => {
-                calibrationOffset.alpha = event.alpha || 0;
-                calibrationOffset.beta = event.beta || 0;
-                calibrationOffset.gamma = event.gamma || 0;
+            // Resetar orientações
+            currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+            previousOrientation = { alpha: 0, beta: 0, gamma: 0 };
+            
+            // Capturar múltiplas amostras para calibração mais estável
+            let samples = [];
+            let sampleCount = 0;
+            const totalSamples = 15; // 15 amostras em 3 segundos
+            
+            const calibrationHandler = (event) => {
+                samples.push({
+                    alpha: event.alpha || 0,
+                    beta: event.beta || 0,
+                    gamma: event.gamma || 0
+                });
+                sampleCount++;
                 
-                vrStatus.classList.remove('calibrating');
-                vrStatus.innerHTML = '✅ Calibrado! Mova seu celular para olhar ao redor';
+                // Atualizar progresso
+                const progress = Math.round((sampleCount / totalSamples) * 100);
+                vrStatus.innerHTML = `🎯 Calibrando... ${progress}%`;
                 
-                setTimeout(() => {
-                    if (vrMobileEnabled) {
-                        updateVRStatus();
-                    }
-                }, 2000);
-            }, { once: true });
+                if (sampleCount >= totalSamples) {
+                    // Calcular média das amostras
+                    calibrationOffset.alpha = samples.reduce((sum, s) => sum + s.alpha, 0) / samples.length;
+                    calibrationOffset.beta = samples.reduce((sum, s) => sum + s.beta, 0) / samples.length;
+                    calibrationOffset.gamma = samples.reduce((sum, s) => sum + s.gamma, 0) / samples.length;
+                    
+                    window.removeEventListener('deviceorientation', calibrationHandler);
+                    
+                    isCalibrating = false;
+                    vrStatus.classList.remove('calibrating');
+                    vrStatus.innerHTML = '✅ Calibrado! Mova seu celular suavemente';
+                    
+                    // Resetar posição da câmera
+                    targetRotationX = 0;
+                    targetRotationY = 0;
+                    
+                    setTimeout(() => {
+                        if (vrMobileEnabled) {
+                            updateVRStatus();
+                        }
+                    }, 3000);
+                }
+            };
+            
+            window.addEventListener('deviceorientation', calibrationHandler);
         }
 
         function lerp(start, end, factor) {
@@ -1721,8 +1814,11 @@
                 targetRotationY += 0.005;
             }
 
-            rotationX += (targetRotationX - rotationX) * 0.1;
-            rotationY += (targetRotationY - rotationY) * 0.1;
+            // Suavização mais lenta para VR mobile
+            const lerpSpeed = vrMobileEnabled ? 0.05 : 0.1;
+            
+            rotationX += (targetRotationX - rotationX) * lerpSpeed;
+            rotationY += (targetRotationY - rotationY) * lerpSpeed;
 
             const euler = new THREE.Euler(0, 0, 0, 'YXZ');
             euler.set(rotationX, rotationY, 0);
@@ -2089,12 +2185,20 @@
 
             // Prevenir zoom e scroll em dispositivos móveis durante VR
             document.addEventListener('touchstart', (e) => {
-                if (vrMobileEnabled && e.touches.length > 1) {
-                    e.preventDefault();
+                if (vrMobileEnabled) {
+                    if (e.touches.length > 1) {
+                        e.preventDefault(); // Previne zoom com 2 dedos
+                    }
                 }
             }, { passive: false });
 
             document.addEventListener('touchmove', (e) => {
+                if (vrMobileEnabled) {
+                    e.preventDefault(); // Previne scroll durante VR
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', (e) => {
                 if (vrMobileEnabled) {
                     e.preventDefault();
                 }
