@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Óculos Virtual Mobile</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        #scene {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+        }
+
+        .cube {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            transform-style: preserve-3d;
+            animation: rotate 10s infinite linear;
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .front { background: rgba(255, 0, 0, 0.8); transform: translateZ(50px); }
+        .back { background: rgba(0, 255, 0, 0.8); transform: translateZ(-50px) rotateY(180deg); }
+        .right { background: rgba(0, 0, 255, 0.8); transform: rotateY(90deg) translateZ(50px); }
+        .left { background: rgba(255, 255, 0, 0.8); transform: rotateY(-90deg) translateZ(50px); }
+        .top { background: rgba(255, 0, 255, 0.8); transform: rotateX(90deg) translateZ(50px); }
+        .bottom { background: rgba(0, 255, 255, 0.8); transform: rotateX(-90deg) translateZ(50px); }
+
+        @keyframes rotate {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
+        }
+
+        .sphere {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff, #ff6b6b);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #45a049;
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        #calibrate {
+            background: #2196F3;
+        }
+
+        #calibrate:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="scene">
+            <!-- Cubos em diferentes posições -->
+            <div class="cube" style="transform: translate3d(-200px, -100px, -300px);">
+                <div class="cube-face front">F</div>
+                <div class="cube-face back">T</div>
+                <div class="cube-face right">D</div>
+                <div class="cube-face left">E</div>
+                <div class="cube-face top">C</div>
+                <div class="cube-face bottom">B</div>
+            </div>
+
+            <div class="cube" style="transform: translate3d(150px, 50px, -200px);">
+                <div class="cube-face front">V</div>
+                <div class="cube-face back">R</div>
+                <div class="cube-face right">T</div>
+                <div class="cube-face left">U</div>
+                <div class="cube-face top">A</div>
+                <div class="cube-face bottom">L</div>
+            </div>
+
+            <div class="cube" style="transform: translate3d(0px, -200px, -400px);">
+                <div class="cube-face front">3</div>
+                <div class="cube-face back">D</div>
+                <div class="cube-face right">R</div>
+                <div class="cube-face left">E</div>
+                <div class="cube-face top">A</div>
+                <div class="cube-face bottom">L</div>
+            </div>
+
+            <!-- Esferas flutuantes -->
+            <div class="sphere" style="transform: translate3d(100px, 100px, -150px);"></div>
+            <div class="sphere" style="transform: translate3d(-150px, 200px, -250px); background: radial-gradient(circle at 30% 30%, #fff, #4ecdc4);"></div>
+            <div class="sphere" style="transform: translate3d(200px, -150px, -300px); background: radial-gradient(circle at 30% 30%, #fff, #45b7d1);"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div>📱 <strong>Óculos Virtual Mobile</strong></div>
+        <div>Mova seu celular para olhar ao redor!</div>
+        <button id="startBtn" class="btn">Iniciar Sensores</button>
+        <button id="calibrate" class="btn">Calibrar</button>
+    </div>
+
+    <div id="status">
+        <div id="orientation">Aguardando sensores...</div>
+    </div>
+
+    <script>
+        class MobileVRSystem {
+            constructor() {
+                this.scene = document.getElementById('scene');
+                this.status = document.getElementById('orientation');
+                this.startBtn = document.getElementById('startBtn');
+                this.calibrateBtn = document.getElementById('calibrate');
+                
+                this.isActive = false;
+                this.calibrationOffset = { alpha: 0, beta: 0, gamma: 0 };
+                this.currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+                this.smoothFactor = 0.8; // Suavização do movimento
+                this.sensitivity = 1.5; // Sensibilidade do movimento
+                
+                this.init();
+            }
+
+            init() {
+                this.startBtn.addEventListener('click', () => this.requestPermission());
+                this.calibrateBtn.addEventListener('click', () => this.calibrate());
+                
+                // Verificar se o dispositivo suporta sensores de orientação
+                if (!window.DeviceOrientationEvent) {
+                    this.status.textContent = '❌ Dispositivo não suporta sensores de orientação';
+                    this.startBtn.disabled = true;
+                    return;
+                }
+                
+                this.status.textContent = '📱 Clique em "Iniciar Sensores" para começar';
+            }
+
+            async requestPermission() {
+                try {
+                    // Para iOS 13+ precisamos solicitar permissão
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') {
+                            this.status.textContent = '❌ Permissão negada para acessar sensores';
+                            return;
+                        }
+                    }
+                    
+                    this.startVR();
+                } catch (error) {
+                    console.error('Erro ao solicitar permissão:', error);
+                    this.status.textContent = '❌ Erro ao acessar sensores';
+                }
+            }
+
+            startVR() {
+                this.isActive = true;
+                this.startBtn.textContent = 'Ativo';
+                this.startBtn.disabled = true;
+                this.status.textContent = '✅ Sensores ativos - Mova seu celular!';
+                
+                // Adicionar listener para orientação
+                window.addEventListener('deviceorientation', (event) => {
+                    this.handleOrientation(event);
+                });
+                
+                // Iniciar calibração automática após 2 segundos
+                setTimeout(() => {
+                    this.calibrate();
+                }, 2000);
+            }
+
+            handleOrientation(event) {
+                if (!this.isActive) return;
+                
+                const alpha = event.alpha || 0; // Rotação Z (compass)
+                const beta = event.beta || 0;   // Rotação X (tilt front/back)
+                const gamma = event.gamma || 0; // Rotação Y (tilt left/right)
+                
+                // Aplicar calibração
+                const calibratedAlpha = alpha - this.calibrationOffset.alpha;
+                const calibratedBeta = beta - this.calibrationOffset.beta;
+                const calibratedGamma = gamma - this.calibrationOffset.gamma;
+                
+                // Suavizar o movimento
+                this.currentOrientation.alpha = this.lerp(this.currentOrientation.alpha, calibratedAlpha, this.smoothFactor);
+                this.currentOrientation.beta = this.lerp(this.currentOrientation.beta, calibratedBeta, this.smoothFactor);
+                this.currentOrientation.gamma = this.lerp(this.currentOrientation.gamma, calibratedGamma, this.smoothFactor);
+                
+                this.updateScene();
+                this.updateStatus();
+            }
+
+            updateScene() {
+                const { alpha, beta, gamma } = this.currentOrientation;
+                
+                // Aplicar rotação à cena com sensibilidade ajustada
+                const rotationX = -beta * this.sensitivity;
+                const rotationY = alpha * this.sensitivity;
+                const rotationZ = gamma * this.sensitivity * 0.5; // Menos sensível para Z
+                
+                // Limitar rotações para evitar movimentos extremos
+                const clampedX = Math.max(-90, Math.min(90, rotationX));
+                const clampedZ = Math.max(-30, Math.min(30, rotationZ));
+                
+                this.scene.style.transform = `
+                    rotateX(${clampedX}deg) 
+                    rotateY(${rotationY}deg) 
+                    rotateZ(${clampedZ}deg)
+                `;
+            }
+
+            updateStatus() {
+                const { alpha, beta, gamma } = this.currentOrientation;
+                this.status.innerHTML = `
+                    🧭 Compass: ${alpha.toFixed(1)}° | 
+                    📐 Tilt: ${beta.toFixed(1)}° | 
+                    🔄 Roll: ${gamma.toFixed(1)}°
+                `;
+            }
+
+            calibrate() {
+                if (!this.isActive) return;
+                
+                // Capturar orientação atual como referência
+                window.addEventListener('deviceorientation', (event) => {
+                    this.calibrationOffset.alpha = event.alpha || 0;
+                    this.calibrationOffset.beta = event.beta || 0;
+                    this.calibrationOffset.gamma = event.gamma || 0;
+                    
+                    this.status.textContent = '🎯 Calibrado! Mova seu celular para olhar ao redor.';
+                    
+                    setTimeout(() => {
+                        this.updateStatus();
+                    }, 2000);
+                }, { once: true });
+            }
+
+            lerp(start, end, factor) {
+                return start + (end - start) * factor;
+            }
+        }
+
+        // Inicializar o sistema quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            new MobileVRSystem();
+        });
+
+        // Prevenir zoom e scroll
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
