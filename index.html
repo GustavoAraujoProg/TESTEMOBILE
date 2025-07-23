@@ -2,14 +2,20 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tour Virtual 360° - Imóvel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tour Virtual 360° - Sistema VR Aprimorado</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
         body {
@@ -17,6 +23,11 @@
             overflow: hidden;
             background: #000;
             color: #fff;
+            display: block;
+            touch-action: pan-x pan-y;
+            /* Safari iOS otimizações - versões padrão */
+            user-select: none;
+            -webkit-touch-callout: none;
         }
 
         #container {
@@ -27,21 +38,169 @@
             z-index: 1;
             background-color: #000;
         }
-        
-        .side-panel {
-            position: fixed;
-            left: 20px;
-            top: 20px;
-            width: 50px;
-            height: 10px;
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px;
+
+        .interactive-hotspot {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: rgba(128, 128, 128, 0.9);
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: auto !important;
+            transition: all 0.2s ease;
             z-index: 1000;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            /* Safari iOS otimizações */
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            will-change: transform;
+        }
+
+        /* MOBILE - HOTSPOTS MAIORES E MAIS PRECISOS */
+        @media (max-width: 768px), (pointer: coarse) {
+            .interactive-hotspot {
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 18px !important;
+                border: 4px solid #ffffff !important;
+                z-index: 9999 !important;
+                pointer-events: auto !important;
+                opacity: 1 !important;
+                display: flex !important;
+                visibility: visible !important;
+                min-width: 50px !important;
+                min-height: 50px !important;
+                /* Área de toque ampliada para iOS */
+                padding: 10px;
+                margin: -10px;
+            }
+            
+            .plan-hotspot {
+                width: 30px !important;
+                height: 30px !important;
+                min-width: 30px !important;
+                min-height: 30px !important;
+                padding: 5px !important;
+                margin: -5px !important;
+            }
+        }
+
+        /* Para dispositivos touch - especialmente iOS Safari */
+        @media (pointer: coarse) {
+            .interactive-hotspot {
+                min-width: 50px !important;
+                min-height: 50px !important;
+                z-index: 9999 !important;
+                pointer-events: auto !important;
+                opacity: 1 !important;
+                /* Feedback visual imediato para iOS */
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+            
+            .interactive-hotspot:active {
+                transform: scale(1.3) translateZ(0) !important;
+                background: #007bff !important;
+                border-color: #ffffff !important;
+                transition: none !important;
+            }
+        }
+
+        /* Garantir visibilidade em mobile */
+        @media (max-width: 1024px) {
+            .interactive-hotspot {
+                z-index: 9999 !important;
+                pointer-events: auto !important;
+                opacity: 1 !important;
+                display: flex !important;
+            }
+        }
+        
+        .interactive-hotspot:hover {
+            background: #a0a0a0;
+            transform: scale(1.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        .interactive-hotspot::before {
+            content: '';
+            font-size: 16px;
+            color: white;
+        }
+        
+        .hotspot-tooltip {
+            position: fixed;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(30, 30, 30, 0.95));
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            max-width: 220px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            z-index: 2001;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .hotspot-tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .hotspot-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.95);
+        }
+
+        #interactive-info-panel {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        #interactive-info-panel.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .interactive-info-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+        
+        .interactive-info-content {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #ccc;
         }
 
         #viewer {
@@ -49,136 +208,188 @@
             height: 100%;
             cursor: grab;
             user-select: none;
+            touch-action: pan-x pan-y !important;
+            -webkit-touch-callout: none;
+            /* Safari iOS performance */
+            -webkit-overflow-scrolling: touch;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
         }
         
         #viewer:active {
             cursor: grabbing;
         }
 
-        .plan-toggle-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(28, 87, 59, 0.9);
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 20px;
-            text-align: center;
-            box-shadow: 0 0 15px rgba(128, 128, 128, 0.3);
-            position: relative;
-        }
-
-        .plan-toggle-btn:hover {
-            background: #b6bec7;
-            transform: scale(1.05);
-        }
-
-        .plan-toggle-btn img {
-            width: 80%;
-            height: auto;
-            object-fit: contain;
-        }
-        
-        .bottom-controls {
+        /* Botão para abrir a planta */
+        .floor-plan-toggle {
             position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 1000;
-        }
-        
-        .control-btn {
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
+            top: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #000000, #1e679c);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .control-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-
-        /* NOVO: Botão VR Mobile */
-        .vr-mobile-btn {
-            background: rgba(40, 167, 69, 0.8) !important;
-            border: 2px solid rgba(255, 255, 255, 0.9) !important;
-        }
-        
-        .vr-mobile-btn:hover {
-            background: rgba(40, 167, 69, 1) !important;
-        }
-
-        .vr-mobile-btn.active {
-            background: rgba(220, 53, 69, 0.8) !important;
-            animation: pulse-vr 2s infinite;
-        }
-
-        @keyframes pulse-vr {
-            0%, 100% { 
-                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
-            }
-            50% { 
-                box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
-            }
-        }
-        
-        .zoom-control {
-            position: fixed;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1000;
-        }
-        
-        .zoom-btn {
-            background: rgba(0, 0, 0, 0.8);
+            z-index: 2500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 25px rgba(242, 247, 255, 0.4);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .floor-plan-toggle:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6);
+        }
+
+        .floor-plan-toggle.active {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .toggle-icon {
+            width: 28px;
+            height: 28px;
+            fill: #ffffff;
+        }
+
+        /* Menu da planta baixa */
+        .floor-plan-menu {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            width: 380px;
+            max-height: calc(100vh - 100px);
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            z-index: 2000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: auto;
+            transform: translateX(-120%) scale(0.8);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .floor-plan-menu.visible {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .close-menu-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #ffffff;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            transition: all 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
-        
-        .zoom-btn:hover {
+
+        .close-menu-btn:hover {
             background: rgba(255, 255, 255, 0.2);
         }
-        
+
+        .floor-plan-container {
+            position: relative;
+            width: 100%;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .floor-plan-image {
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        .plan-hotspot {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #aaafac, #4a4e4c);
+            border: 3px solid forestgreen;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .plan-hotspot:hover {
+            transform: scale(1.4);
+        }
+
+        .plan-hotspot.active {
+            background: linear-gradient(135deg, #df3030, #751010);
+            transform: scale(1.3);
+        }
+
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .menu-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
         .room-info {
             position: fixed;
-            top: 650px;
-            left: 1390px;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
+            bottom: 100px;
+            left: 20px;
             padding: 15px 20px;
             border-radius: 20px;
-            border: 10px solid rgba(255, 255, 255, 0.1);
             z-index: 1000;
             max-width: 300px;
         }
@@ -193,201 +404,122 @@
         .room-description {
             font-size: 14px;
             color: rgba(255, 255, 255, 0.8);
-            line-height: 1.9;
-        }
-
-        /* NOVO: Status VR Mobile */
-        #vr-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 10px;
-            font-size: 12px;
-            z-index: 1100;
-            display: none;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        #vr-status.active {
-            display: block;
-        }
-
-        #vr-status.calibrating {
-            background: rgba(255, 193, 7, 0.9);
-            color: #000;
+            line-height: 1.4;
         }
         
-        .photo-placeholder {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 193, 7, 0.9);
-            color: #000;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 16px;
-            z-index: 500;
-            max-width: 400px;
-            border: 2px solid #ff6b35;
-            display: none;
-        }
-        
-        .nav-hotspot {
-            position: fixed;
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 123, 255, 0.8);
-            border: 3px solid rgba(255, 255, 255, 0.9);
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 24px;
-            transition: all 0.3s ease;
-            animation: pulse 2s infinite;
-        }
-        
-        .nav-hotspot:hover {
-            transform: scale(1.1);
-            background: rgba(0, 123, 255, 1);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { 
-                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
-            }
-            50% { 
-                box-shadow: 0 0 0 20px rgba(0, 123, 255, 0);
-            }
-        }
-        
-        #humanized-plan-overlay {
+        #splash-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
+            background-image: url('hall.png');
+            background-size: cover;
+            background-position: center;
             display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        #humanized-plan-overlay.visible {
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #fff;
+            z-index: 9999;
             opacity: 1;
             visibility: visible;
-        }
-
-        #humanized-plan-modal {
-            background: #fff;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            transition: opacity 1s ease-out, visibility 1s ease-out;
             padding: 20px;
-            position: absolute;
-            top: 20px;
-            left: 110px;
-            width: 400px;
-            height: 500px;
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
             box-sizing: border-box;
         }
 
-        #humanized-plan-overlay.visible #humanized-plan-modal {
-            transform: scale(1);
-        }
-
-        #humanized-plan-modal .close-btn {
+        #splash-screen::before {
+            content: '';
             position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #f44336;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background 0.3s ease;
-            z-index: 2001;
-        }
-
-        #humanized-plan-modal .close-btn:hover {
-            background: #d32f2f;
-        }
-
-        #humanized-plan-image-container {
-            position: relative;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            background-color: #888;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 0;
         }
 
-        #humanized-plan-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            cursor: grab;
-            transform-origin: 0 0;
+        #splash-screen > * {
+            z-index: 1;
         }
 
-        .room-hotspot-on-plan {
-            position: absolute;
-            background: rgba(128, 128, 128, 0.9);
-            border: 3px solid #fff;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
+        .caixa-com-borda {
+            padding: 60px 300px;            
+            width: 200px;
+        }
+
+        .image-b2n {
             justify-content: center;
+            width: 800px;
+            right: 400px;
+            text-align: center;
+            display: flex;
             align-items: center;
-            color: white;
-            font-size: 0px;
+            border-radius: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .image-b2n{ 
+                justify-content: center;
+                width: 400px;
+                right: 200px;
+                top: 50px;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                border-radius: 10px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .image-b2n{ 
+                justify-content: center;
+                width: 900px;
+                right: 440px;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                border-radius: 10px;
+            }
+        }
+
+        #start-tour-btn {
+            background: #cecabe;
+            color: #000;
+            padding: 10px 50px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.5rem;
             font-weight: bold;
+            margin-top: 110px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            transform: translate(-50%, -50%);
-            z-index: 2000;
-            pointer-events: auto;
-            box-shadow: 
-                0 0 0 2px rgba(128, 128, 128, 0.3),
-                inset 0 0 0 6px rgba(255, 255, 255, 0.8);
+            transition: background 0.3s ease, transform 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
-        .room-hotspot-on-plan:hover {
-            background: rgba(160, 160, 160, 1);
-            transform: translate(-50%, -50%) scale(1.2);
-            box-shadow: 
-                0 0 10px rgba(160, 160, 160, 0.7),
-                inset 0 0 0 6px rgba(255, 255, 255, 1);
-            z-index: 2001;
+        #start-tour-btn:hover {
+            background: #4a882e;
+            transform: translateY(-3px);
+        }
+
+        #logo-container {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        #logo-central {
+            border-radius: 100px;
+            width: 70px;
+            height: 60px; 
+            opacity: 0.8;
+            filter: drop-shadow(0px 0px 10px rgba(0, 0, 0, 0.3));
         }
         
         .loading {
@@ -413,304 +545,6 @@
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
         }
-
-        .caixa-com-borda{
-            padding: 60px 300px;            
-            width: 200px;
-        }
-
-        .image-b2n{
-            justify-content: center;
-            width: 800px;
-            right: 400px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            border-radius: 10px;
-        }
-
-        #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-image: url('hall.png');
-            background-size: cover;
-            background-position: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            color: #fff;
-            z-index: 9999;
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 1s ease-out, visibility 1s ease-out;
-            backdrop-filter: blur(5px);
-        }
-
-        #splash-screen::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 0;
-        }
-
-        #splash-screen > * {
-            z-index: 1;
-        }
-
-        #splash-screen h1 {
-            font-size: 3rem;
-            color: #d4af37;
-            margin-bottom: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .logo-splash-screen {
-            max-width: 80%;
-            height: auto;
-            margin-bottom: 20px;
-        }
-
-        #splash-screen p {
-            font-size: 1.2rem;
-            margin-bottom: 30px;
-            color: #ccc;
-        }
-
-        #start-tour-btn {
-            background: #cecabe;
-            color: #000;
-            padding: 10px 50px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-top: 110px;
-            cursor: pointer;
-            transition: background 0.3s ease, transform 0.3s ease;
-        }
-
-        .btn-modific{
-            width: 25px;
-        }
-
-        #floor-plan-panel {
-            pointer-events: none;
-        }
-
-        #floor-plan-panel .floor-plan-hotspot,
-        #floor-plan-panel button {
-            pointer-events: auto;
-        }
-
-        #start-tour-btn:hover {
-            opacity:initial;
-            background: #4a882e;
-            transform: translateY(-3px);
-        }
-
-        #more-info-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        #more-info-overlay.visible {
-            display: flex;
-            opacity: 1;
-        }
-
-        #more-info-modal {
-            background: rgba(255, 255, 255, 0.95);
-            color: #333;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            width: 600px;
-            max-width: 90%;
-            position: relative;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        #more-info-overlay.visible #more-info-modal {
-            transform: scale(1);
-        }
-
-        #more-info-modal h2 {
-            font-size: 28px;
-            color: #007bff;
-            margin-bottom: 20px;
-            text-align: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        .info-section {
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .info-section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .info-section h3 {
-            font-size: 22px;
-            color: #0056b3;
-            margin-bottom: 10px;
-        }
-
-        .info-section p, .info-section ul {
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-
-        .info-section ul {
-            list-style: disc;
-            margin-left: 20px;
-        }
-
-        .vr-button, .landing-page-button {
-            display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background 0.3s ease, transform 0.3s ease;
-            margin-top: 10px;
-        }
-
-        .landing-page-button {
-            background: #17a2b8;
-        }
-
-        .vr-button:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .landing-page-button:hover {
-            background: #138496;
-            transform: translateY(-2px);
-        }
-
-        .minimalist-arrow {
-            width: 0;
-            height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-bottom: 30px solid white;
-            position: relative;
-            box-sizing: border-box;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-
-        .minimalist-arrow::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -22px;
-            width: 0;
-            height: 0;
-            border-left: 22px solid transparent;
-            border-right: 22px solid transparent;
-            border-bottom: 34px solid #888;
-            z-index: -1;
-        }
-
-        .minimalist-arrow:hover {
-            transform: translateY(-5px);
-        }
-
-        @media (max-width: 768px) {
-            #more-info-modal {
-                width: 95%;
-                left: 2.5%;
-                top: 50%;
-                transform: translateY(-50%);
-                padding: 20px;
-            }
-
-            .info-section h3 {
-                font-size: 18px;
-            }
-
-            .info-section p, .info-section ul, .vr-button, .landing-page-button {
-                font-size: 14px;
-            }
-        }
-        @media (max-width: 768px) {
-            .room-hotspot-on-plan {
-                width: 20px;
-                height: 20px;
-                font-size: 0px;
-                border: 2px solid #fff;
-            }
-            
-            .room-hotspot-on-plan.simple {
-                width: 16px;
-                height: 16px;
-                border: 2px solid white;
-            }
-        }
-         
-        #logo-container {
-            position: absolute;
-            top: 50px;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        #logo-central {
-            border-radius: 100px;
-            width: 70px;
-            height: 60; 
-            opacity: 0.8;
-            filter: drop-shadow(0px 0px 10px rgba(0, 0, 0, 0.3));
-        }
-
-        @media (max-width: 768px) {
-            #logo-central {
-                height: 40px;
-            }
-        }
-
-        body {
-            opacity: 1 !important;
-            transition: none !important;
-        }
         
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -722,216 +556,696 @@
             color: rgba(255, 255, 255, 0.8);
         }
         
-        @media (max-width: 768px) {
-            .side-panel {
-                left: 10px;
-                top: 10px;
-                width: auto;
-                padding: 10px 5px;
-                background: rgba(0, 0, 0, 0.9);
-                backdrop-filter: none;
-            }
-            
-            .plan-toggle-btn {
-                width: 60px;
-                height: 50px;
-                box-shadow: 0 0 10px rgba(48, 52, 56, 0.3);
-            }
-
-            .plan-toggle-btn img {
-                width: 90%;
-            }
-
-            #humanized-plan-modal {
-                top: 80px;
-                left: 10px;
-                width: 95%;
-                height: 80%;
-                max-width: 95vw;
-                max-height: 80vh;
-            }
-
-            #humanized-plan-modal .close-btn {
-                top: 10px;
-                right: 10px;
-                width: 25px;
-                height: 25px;
-                font-size: 16px;
-            }
-
-            #humanized-plan-image {
-                max-width: 100%;
-                max-height: 100%;
-            }
-            
-            .room-hotspot-on-plan {
-                width: 25px;
-                height: 25px;
-                font-size: 8px;
-            }
-
-            .room-info {
-                left: 10px;
-                max-width: 250px;
-                bottom: 10px;
-                top: auto;
-                background: rgba(0, 0, 0, 0.9);
-                backdrop-filter: none;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            
-            .zoom-control {
-                right: 10px;
-            }
-            
-            .zoom-btn {
-                background: rgba(0, 0, 0, 0.9);
-                backdrop-filter: none;
-            }
-
-            .bottom-controls {
-                bottom: 20px;
-                gap: 10px;
-            }
-            
-            .control-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-                background: rgba(0, 0, 0, 0.9);
-                backdrop-filter: none;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-
-            #help-modal {
-                width: 90%;
-                left: 5%;
-                top: 50%;
-                transform: translateY(-50%);
-                padding: 20px;
-            }
-
-            #help-overlay {
-                background: rgba(0, 0, 0, 0.8);
-                backdrop-filter: none;
-            }
-
-            #splash-screen {
-                backdrop-filter: blur(2px);
-            }
-
-            #vr-status {
-                top: 10px;
-                right: 10px;
-                font-size: 10px;
-                padding: 8px 12px;
-            }
-        }
-        
         .hidden {
             display: none;
         }
 
-        #help-overlay {
+        /* ============= SISTEMA VR ============= */
+        
+        .vr-selection-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+            backdrop-filter: blur(20px);
+            z-index: 15000;
             display: none;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .vr-selection-screen.visible {
+            opacity: 1;
+        }
+
+        .vr-selection-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .vr-selection-subtitle {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+
+        .vr-options {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 20px;
+        }
+
+        .vr-option {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(29, 78, 216, 0.2));
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .vr-option:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.8);
+        }
+
+        .vr-option-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            fill: #3b82f6;
+        }
+
+        .vr-option-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .vr-option-description {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+
+        .vr-close-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .vr-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* BOTÃO VR PRINCIPAL - Mobile detectado automaticamente */
+        .vr-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .vr-button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6);
+        }
+
+        /* MOSTRAR EM DISPOSITIVOS MÓVEIS */
+        @media (max-width: 1024px) and (pointer: coarse) {
+            .vr-button {
+                display: flex !important;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .vr-button {
+                display: flex !important;
+            }
+        }
+
+        .vr-icon {
+            width: 35px;
+            height: 35px;
+            fill: #ffffff;
+        }
+
+        /* MODO VR LIVRE */
+        .gyro-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 12000;
+            display: none;
+        }
+
+        .gyro-mode.active {
+            display: block;
+        }
+
+        .gyro-viewer {
+            width: 100%;
+            height: 100%;
+        }
+
+        .gyro-controls {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 15px 25px;
+            z-index: 12001;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .gyro-status {
+            color: #00ff00;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .gyro-exit {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+            border-radius: 10px;
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .gyro-exit:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        /* MODO VR ESTEREOSCÓPICO */
+        .stereo-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 13000;
+            display: none;
+            flex-direction: row;
+        }
+
+        .stereo-mode.active {
+            display: flex;
+        }
+
+        .stereo-eye {
+            width: 50%;
+            height: 100%;
+            position: relative;
+            background: #000;
+        }
+
+        .stereo-eye-left {
+            border-right: 2px solid #333;
+        }
+
+        .stereo-eye-right {
+            border-left: 2px solid #333;
+        }
+
+        .stereo-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .vr-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 15001;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
 
-        #help-overlay.visible {
-            display: flex;
+        .vr-crosshair.show {
             opacity: 1;
         }
 
-        #help-modal {
-            background: rgba(255, 255, 255, 0.95);
-            color: #333;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            width: 500px;
-            max-width: 90%;
-            position: relative;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-
-        #help-overlay.visible #help-modal {
-            transform: scale(1);
-        }
-        
-        #help-modal h2 {
-            font-size: 28px;
-            color: #007bff;
-            margin-bottom: 20px;
-            text-align: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        #help-modal p {
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        #help-modal strong {
-            color: #007bff;
-        }
-
-        #help-modal ul {
-            list-style: none;
-            padding: 0;
-            margin-bottom: 20px;
-        }
-
-        #help-modal ul li {
-            margin-bottom: 8px;
-            font-size: 15px;
-            display: flex;
-            align-items: flex-start;
-        }
-
-        #help-modal ul li span {
-            margin-right: 10px;
-            font-size: 18px;
-            color: #007bff;
-        }
-
-        #help-modal .close-btn {
+        .vr-crosshair::after {
+            content: '';
             position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #f44336;
-            color: white;
-            border: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: #fff;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            font-size: 20px;
+        }
+
+        .vr-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 15001;
+            display: flex;
+            gap: 10px;
+        }
+
+        .vr-control-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
             cursor: pointer;
             display: flex;
-            justify-content: center;
             align-items: center;
-            transition: background 0.3s ease;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            /* iOS Safari fix */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
-        #help-modal .close-btn:hover {
-            background: #d32f2f;
+        .vr-control-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: rgba(255, 255, 255, 0.5);
         }
+
+        .vr-progress {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            z-index: 15001;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .vr-progress.show {
+            opacity: 1;
+        }
+
+        .vr-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00d4aa, #00a8ff);
+            border-radius: 4px;
+            transition: width 0.1s ease;
+        }
+
+        .vr-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            text-align: center;
+            z-index: 15002;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .vr-notification.show {
+            opacity: 1;
+        }
+
+        #submarca-tour {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            max-width: 100px;
+            width: 10%;
+            height: auto;
+            opacity: 0.7;
+            z-index: 2000;
+            pointer-events: none;
+            filter: drop-shadow(0px 0px 10px rgba(0, 0, 0, 0.4));
+        }
+
+        /* MOBILE RESPONSIVO */
+        @media (max-width: 768px) {
+            .interactive-hotspot {
+                width: 50px;
+                height: 50px;
+                font-size: 16px;
+                border: 5px solid #ffffff;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            }
+            
+            .interactive-hotspot:hover,
+            .interactive-hotspot:active,
+            .interactive-hotspot:focus {
+                transform: scale(1.3);
+                background: #a0a0a0;
+            }
+            
+            #interactive-info-panel {
+                right: 10px;
+                top: 80px;
+                max-width: calc(100vw - 40px);
+                left: 10px;
+                right: 10px;
+            }
+            
+            .room-info {
+                bottom: 100px;
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+            
+            .vr-button {
+                bottom: 20px;
+                right: 20px;
+                width: 65px;
+                height: 65px;
+            }
+            
+            .vr-options {
+                gap: 15px;
+                max-width: calc(100vw - 40px);
+                padding: 0 20px;
+            }
+            
+            .vr-option {
+                padding: 20px;
+            }
+            
+            .vr-selection-title {
+                font-size: 24px;
+                padding: 0 20px;
+            }
+            
+            .vr-selection-subtitle {
+                font-size: 15px;
+                padding: 0 20px;
+            }
+            
+            .vr-close-btn {
+                top: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
+            
+            .gyro-controls {
+                padding: 10px 15px;
+                top: 15px;
+            }
+            
+            .vr-progress {
+                width: 150px;
+                bottom: 30px;
+            }
+            
+            .floor-plan-toggle {
+                width: 55px;
+                height: 55px;
+                top: 15px;
+                left: 15px;
+            }
+            
+            .floor-plan-menu {
+                top: 75px;
+                left: 15px;
+                right: 15px;
+                width: auto;
+                max-height: calc(100vh - 100px);
+            }
+            
+            .hotspot-tooltip {
+                max-width: 180px;
+                font-size: 13px;
+                padding: 10px 14px;
+            }
+            
+            #submarca-tour {
+                bottom: 15px;
+                left: 15px;
+                max-width: 120px;
+                width: 20%;
+            }
+        }
+
+        /* TABLET RESPONSIVO */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .interactive-hotspot {
+                width: 35px;
+                height: 35px;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .vr-button {
+                width: 65px;
+                height: 65px;
+                bottom: 25px;
+                right: 25px;
+            }
+            
+            .floor-plan-menu {
+                width: 350px;
+            }
+            
+            #submarca-tour {
+                max-width: 150px;
+            }
+        }
+
+        /* MELHORIAS PARA TOUCH - Especialmente iOS Safari */
+        @media (pointer: coarse) {
+            .interactive-hotspot {
+                /* Área de toque maior para dedos */
+                min-width: 44px;
+                min-height: 44px;
+                /* Feedback visual instantâneo */
+                transition: transform 0.1s ease, background 0.1s ease;
+                /* Hardware acceleration para iOS */
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+                will-change: transform;
+            }
+            
+            .interactive-hotspot:active {
+                transform: scale(1.2) translateZ(0);
+                background: #007bff;
+                transition: none;
+            }
+            
+            /* Remover hover em dispositivos touch */
+            .interactive-hotspot:hover {
+                transform: none;
+                background: rgba(128, 128, 128, 0.9);
+            }
+            
+            .plan-hotspot {
+                min-width: 32px;
+                min-height: 32px;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+            
+            .floor-plan-toggle,
+            .vr-button,
+            .close-menu-btn,
+            .vr-close-btn,
+            .gyro-exit,
+            .vr-control-btn {
+                min-width: 44px;
+                min-height: 44px;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+        }
+
     </style>
 </head>
 <body>
+    <img id="submarca-tour" src="submarcatour.png" alt="Submarca">
+
+    <!-- Botão para abrir a planta baixa -->
+    <div class="floor-plan-toggle" id="floorPlanToggle" title="Abrir Planta Baixa">
+        <svg class="toggle-icon" viewBox="0 0 24 24">
+            <path d="M19,2H14V4H19V9H21V4A2,2 0 0,0 19,2M19,10V15H21V10H19M14,20V22H19A2,2 0 0,0 21,20H14M10,2V4H15V2H10M15,20V22H10V20H15M5,2A2,2 0 0,0 3,4V9H5V4H10V2H5M3,10V15H5V10H3M5,20H10V22H5A2,2 0 0,1 3,20V15H5V20Z"/>
+        </svg>
+    </div>
+
+    <!-- Overlay para fechar clicando fora -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- Menu da planta baixa -->
+    <div class="floor-plan-menu" id="floorPlanMenu">
+        <div class="menu-header">
+            <div class="menu-title">Planta</div>
+            <button class="close-menu-btn" id="closeMenuBtn">×</button>
+        </div>
+
+        <div class="floor-plan-container">
+            <img src="planta1.png" alt="Planta Baixa" class="floor-plan-image" id="floorPlanImage">
+            
+            <!-- Hotspots da planta - INCLUINDO HOME (H) -->
+            <div class="plan-hotspot" data-room="0" style="top: 71%; left: 22%;">H</div>
+            <div class="plan-hotspot" data-room="1" style="top: 5%; left: 30%;">1</div>
+            <div class="plan-hotspot" data-room="2" style="top: 9%; left: 17%;">2</div>
+            <div class="plan-hotspot" data-room="3" style="top: 30%; left: 30%;">3</div>
+            <div class="plan-hotspot" data-room="4" style="top: 40%; left: 30%;">4</div>
+            <div class="plan-hotspot" data-room="5" style="top: 40%; left: 42%;">5</div>
+            <div class="plan-hotspot" data-room="6" style="top: 52%; left: 30%;">6</div>
+            <div class="plan-hotspot" data-room="7" style="top: 57%; left: 30%;">S1</div>
+            <div class="plan-hotspot" data-room="8" style="top: 57%; left: 20%;">S2</div>
+            <div class="plan-hotspot" data-room="9" style="top: 62%; left: 30%;">S3</div>
+            <div class="plan-hotspot" data-room="10" style="top: 70%; left: 40%;">C</div>
+            <div class="plan-hotspot" data-room="11" style="top: 68%; left: 58%;">Q1</div>
+            <div class="plan-hotspot" data-room="12" style="top: 75%; left: 75%;">Q2</div>
+            <div class="plan-hotspot" data-room="13" style="top: 67%; left: 77%;">B2</div>
+            <div class="plan-hotspot" data-room="14" style="top: 38%; left: 13%;">BS</div>
+            <div class="plan-hotspot" data-room="15" style="top: 80%; left: 40%;">D</div>
+            <div class="plan-hotspot" data-room="16" style="top: 75%; left: 40%;">L</div>
+            <div class="plan-hotspot" data-room="17" style="top: 68%; left: 30%;">LV</div>
+        </div>
+    </div>
+
+    <!-- BOTÃO VR PRINCIPAL -->
+    <div class="vr-button" id="vrButton" title="Modo VR">
+        <svg class="vr-icon" viewBox="0 0 24 24">
+            <path d="M20.84,4.22C20.5,4.08 20.15,4 19.8,4H4.2C3.85,4 3.5,4.08 3.16,4.22C2.44,4.53 2,5.25 2,6V18C2,18.75 2.44,19.47 3.16,19.78C3.5,19.92 3.85,20 4.2,20H19.8C20.15,20 20.5,19.92 20.84,19.78C21.56,19.47 22,18.75 22,18V6C22,5.25 21.56,4.53 20.84,4.22M12,6.5C13.38,6.5 14.5,7.62 14.5,9C14.5,10.38 13.38,11.5 12,11.5C10.62,11.5 9.5,10.38 9.5,9C9.5,7.62 10.62,6.5 12,6.5M7,6.5C8.38,6.5 9.5,7.62 9.5,9C9.5,10.38 8.38,11.5 7,11.5C5.62,11.5 4.5,10.38 4.5,9C4.5,7.62 5.62,6.5 7,6.5M17,6.5C18.38,6.5 19.5,7.62 19.5,9C19.5,10.38 18.38,11.5 17,11.5C15.62,11.5 14.5,10.38 14.5,9C14.5,7.62 15.62,6.5 17,6.5Z"/>
+        </svg>
+    </div>
+
+    <!-- TELA DE SELEÇÃO VR -->
+    <div class="vr-selection-screen" id="vrSelectionScreen">
+        <button class="vr-close-btn" id="vrCloseBtn">×</button>
+        
+        <h1 class="vr-selection-title">🥽 Experiência VR</h1>
+        <p class="vr-selection-subtitle">
+            Escolha como deseja visualizar o tour virtual 360°.<br>
+            Ambos os modos utilizam os sensores de movimento do seu dispositivo.
+        </p>
+        
+        <div class="vr-options">
+            <div class="vr-option" id="gyroModeBtn">
+                <svg class="vr-option-icon" viewBox="0 0 24 24">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                </svg>
+                <div class="vr-option-title">📱 Visualização Livre</div>
+                <div class="vr-option-description">
+                    Movimente o celular no espaço para explorar.<br>
+                    Ideal para visualização rápida sem acessórios.
+                </div>
+            </div>
+            
+            <div class="vr-option" id="stereoModeBtn">
+                <svg class="vr-option-icon" viewBox="0 0 24 24">
+                    <path d="M16,6H22V8H21V16H19V8H16V6M2,6H8V8H7V16H5V8H2V6M12.5,9A1.5,1.5 0 0,0 11,10.5V13.5A1.5,1.5 0 0,0 12.5,15A1.5,1.5 0 0,0 14,13.5V10.5A1.5,1.5 0 0,0 12.5,9Z"/>
+                </svg>
+                <div class="vr-option-title">🥽 Modo Imersivo</div>
+                <div class="vr-option-description">
+                    Tela dividida para óculos VR.<br>
+                    Navegação por movimento da cabeça e ativação por olhar.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODO VR LIVRE (GIROSCÓPIO) -->
+    <div class="gyro-mode" id="gyroMode">
+        <div class="gyro-controls">
+            <div class="gyro-status" id="gyroStatus">📱 Modo Livre Ativo</div>
+            <button class="gyro-exit" id="gyroExitBtn">Sair</button>
+        </div>
+        <div class="gyro-viewer" id="gyroViewer"></div>
+    </div>
+
+    <!-- MODO VR ESTEREOSCÓPICO -->
+    <div class="stereo-mode" id="stereoMode">
+        <!-- Controles VR -->
+        <div class="vr-controls">
+            <div class="vr-control-btn" id="stereoExitBtn" title="Sair VR">×</div>
+        </div>
+        
+        <!-- Olho esquerdo -->
+        <div class="stereo-eye stereo-eye-left">
+            <canvas class="stereo-canvas" id="stereoCanvasLeft"></canvas>
+            <div class="vr-crosshair" id="stereoCrosshairLeft"></div>
+        </div>
+        
+        <!-- Olho direito -->
+        <div class="stereo-eye stereo-eye-right">
+            <canvas class="stereo-canvas" id="stereoCanvasRight"></canvas>
+            <div class="vr-crosshair" id="stereoCrosshairRight"></div>
+        </div>
+        
+        <!-- Progress bar para gaze -->
+        <div class="vr-progress" id="stereoProgress">
+            <div class="vr-progress-bar" id="stereoProgressBar"></div>
+        </div>
+    </div>
+
+    <!-- NOTIFICAÇÃO VR -->
+    <div class="vr-notification" id="vrNotification"></div>
 
     <div id="logo-container">
         <img src="./logoprincipal.png" alt="Logo b2n Engenharia" id="logo-central">
@@ -940,15 +1254,10 @@
     <div id="splash-screen">
         <div class="splash-content">
             <div class="caixa-com-borda">
-                <img class="image-b2n" src="./b2n.png" alt="Imagem de fundo" style="position: relative; z-index: 1;" >
-                <button id="start-tour-btn" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;">Iniciar</button>
+                <img class="image-b2n" src="./b2n.png" alt="Imagem de fundo" style="position: relative; z-index: 1;">
+                <button class="button-inicio" id="start-tour-btn" style="position: absolute; top: 50%; left: 49%; transform: translate(-50%, -50%); z-index: 2;">Iniciar</button>
             </div>
         </div>
-    </div>
-
-    <!-- NOVO: Status VR Mobile -->
-    <div id="vr-status">
-        📱 Modo VR: Aguardando...
     </div>
 
     <div id="container">
@@ -956,887 +1265,1149 @@
             <div class="loading-spinner"></div>
             <div class="loading-text">Carregando Tour Virtual...</div>
         </div>
-    
-        <div class="side-panel">
-            <button class="plan-toggle-btn" onclick="toggleHumanizedPlan()">
-                <img src="./seta.png" alt="Planta" title="Planta Baixa Humanizada">
-            </button>
-        </div>
         
         <div id="viewer"></div>
         
-        <div class="bottom-controls">
-            <button class="control-btn" onclick="resetView()" title="Resetar Visão">🔄</button>
-            <button class="control-btn" onclick="takeScreenshot()" title="Capturar Tela">📷</button>
-            <button class="control-btn" onclick="toggleFullscreen()" title="Tela Cheia">⛶</button>
-            <!-- NOVO: Botão VR Mobile -->
-            <button class="control-btn vr-mobile-btn" id="vr-mobile-toggle" onclick="toggleVRMobile()" title="Modo VR Mobile">📱</button>
-            <button class="control-btn" onclick="showMoreInfoModal()" title="Mais Informações">&#x2796;</button>
+        <div id="interactive-info-panel">
+            <div class="interactive-info-title">Título</div>
+            <div class="interactive-info-content">Descrição</div>
         </div>
-
-        <div id="navigation-panel" class="navigation-panel">
-            <div class="navigation-title">Navegar para:</div>
-            <div id="nav-buttons-container"></div>
-        </div>
-    </div>
-
-    <div id="humanized-plan-overlay">
-        <div id="humanized-plan-modal">
-            <button class="close-btn" onclick="hideHumanizedPlanModal()">&#x2716;</button>
-            <div id="humanized-plan-image-container">
-                <img id="humanized-plan-image" src="./planta1.png" alt="Planta Baixa Humanizada">
-            </div>
-        </div>
-    </div>
-
-    <div id="help-overlay">
-        <div id="help-modal">
-            <button class="close-btn" onclick="hideHelpModal()">X</button>
-            <h2>Guia de Navegação do Tour Virtual</h2>
-            <p>Seja bem-vindo(a) ao seu tour virtual 360°! Utilize as seguintes instruções para explorar o ambiente:</p>
-            
-            <h3>Navegação entre Cômodos:</h3>
-            <ul>
-                <li><span>&#x21C6;</span> Clique no **Botão de Planta** no canto esquerdo para abrir a planta baixa humanizada e selecionar um cômodo.</li>
-                <li><span>&#x2192;</span> Ou, clique nas **setas azuis flutuantes** (hotspots) no ambiente para ir diretamente para o próximo cômodo conectado.</li>
-            </ul>
-            <h3>Outros Controles:</h3>
-            <ul>
-                <li><span>&#x21BB;</span> <strong>Resetar Visão:</strong> Centraliza a câmera e o zoom para a visão inicial do cômodo.</li>
-                <li><span>&#x2388;</span> <strong>Capturar Tela:</strong> Salva uma imagem da sua visão atual.</li>
-                <li><span>&#x2B1F;</span> <strong>Tela Cheia:</strong> Ativa ou desativa o modo de tela cheia.</li>
-                <li><span>📱</span> <strong>Modo VR Mobile:</strong> Ativa os sensores do celular para navegação imersiva.</li>
-                <li><span>&#x2139;</span> <strong>Ajuda:</strong> Abre este guia.</li>
-                <li><span>&#x2302;</span> <strong>Início:</strong> Retorna para a tela inicial do tour.</li>
-            </ul>
-        </div>
-    </div>
-
-    <div id="more-info-overlay">
-        <div id="more-info-modal">
-            <button class="close-btn" onclick="hideMoreInfoModal()">X</button>
-            <h2>Mais Informações</h2>
-            <div class="info-section">
-                <h3>Como Usar o Tour</h3>
-                <p>O tour virtual 360° é interativo e fácil de usar. Utilize as seguintes opções de navegação:</p>
-                <ul>
-                    <li><strong>Clique e Arraste:</strong> Mova o mouse (ou o dedo em dispositivos móveis) para girar a visão 360°.</li>
-                    <li><strong>Scroll (Zoom):</strong> Use a roda do mouse ou o movimento de pinça (em dispositivos móveis) para dar zoom.</li>
-                    <li><strong>Setas de Navegação:</strong> Clique nas setas azuis flutuantes para ir para o próximo cômodo ou use o botão de planta no canto superior esquerdo para navegar entre os ambientes através da planta baixa.</li>
-                    <li><strong>Controles Inferiores:</strong> Utilize os botões na parte inferior para resetar a visão, capturar a tela, ativar/desativar tela cheia, acessar este guia de ajuda ou retornar à tela inicial.</li>
-                    <li><strong>Modo VR Mobile:</strong> Ative o botão 📱 para usar os sensores do seu celular e mover o dispositivo para olhar ao redor!</li>
-                </ul>
-            </div>
-            <div class="info-section">
-                <h3>Realidade Virtual (VR)</h3>
-                <p>Para uma experiência mais imersiva, você pode visualizar este tour em realidade virtual.</p>
-                <button class="vr-button" onclick="startVrMode()">Iniciar Modo VR</button>
-            </div>
-            <div class="info-section">
-                <h3>Informações do Imóvel</h3>
-                <p>Para mais detalhes sobre o imóvel, como ficha técnica, valores e contato, visite a página dedicada:</p>
-                <a href="URL_DA_SUA_LANDING_PAGE" target="_blank" class="landing-page-button">Ver Detalhes do Imóvel</a>
-            </div>
+        
+        <div class="room-info">
+            <div class="room-title">Carregando...</div>
+            <div class="room-description">Aguarde...</div>
         </div>
     </div>
 
     <script>
+        console.log("🚀 Iniciando sistema VR aprimorado - Compatível com Safari e touch otimizado...");
+
+        if (typeof THREE === 'undefined') {
+            console.error('❌ THREE.js não carregou!');
+            alert('Erro: THREE.js não foi carregado.');
+        }
+
+        // ============= SISTEMA DE HOTSPOTS ============= 
+        class InteractiveHotspotSystem {
+            constructor(scene, camera, renderer) {
+                this.scene = scene;
+                this.camera = camera;
+                this.renderer = renderer;
+                this.hotspots = [];
+                this.hotspotsData = this.getHotspotsData();
+                console.log("✅ Sistema de hotspots inicializado");
+            }
+            
+            getHotspotsData() {
+                return {
+                    0: [{ x: 3.41, y: 0.45, target: 9, label: 'Sala 3' }],
+                    1: [{ x: 3.10, y: 0.45, target: 2, label: 'Exterior 2' }],
+                    2: [{ x: 0.75, y: 0.40, target: 1, label: 'Exterior 1' }, { x: 0.09, y: 0.48, target: 3, label: 'Exterior 3' }],
+                    3: [{ x: 0.63, y: 0.49, target: 1, label: 'Exterior 1' }, { x: 0.50, y: 0.45, target: 2, label: 'Exterior 2' }, { x: 0.15, y: 0.48, target: 4, label: 'Exterior 4' }],
+                    4: [{ x: 0.65, y: 0.50, target: 1, label: 'Exterior 1' }, { x: 0.61, y: 0.50, target: 2, label: 'Exterior 2' }, { x: 0.69, y: 0.40, target: 3, label: 'Exterior 3' }, { x: 0.9, y: 0.5, target: 5, label: 'Exterior 5' },{ x: 0.15, y: 0.43, target: 6, label: 'Exterior 6' }, { x: 0.10, y: 0.5, target: 7, label: 'Sala 1' }, { x: 0.40, y: 0.5, target: 14, label: 'Banheiro Sauna' }],
+                    5: [{  x: 0.62, y: 0.50, target: 1, label: 'Exterior 1' }, {  x: 0.57, y: 0.50, target: 2, label: 'Exterior 2' }, {  x: 0.59, y: 0.47, target: 3, label: 'Exterior 3' }, {  x: 0.40, y: 0.42, target: 4, label: 'Exterior 4' }, {  x: 0.23, y: 0.45,target: 6, label: 'Exterior 6' }, { x: 0.15, y: 0.5, target: 7, label: 'Sala 1' }, { x: 0.40, y: 0.48, target: 14, label: 'Banheiro Sauna' }],
+                    6: [{ x: 0.10, y: 0.45, target: 7, label: 'Sala 1' }, { x: 0.65, y: 0.50, target: 1, label: 'Exterior 1' }, { x: 0.63, y: 0.47, target: 2, label: 'Exterior 2' }, { x: 0.65, y: 0.47, target: 3, label: 'Exterior 3' }, { x: 0.65, y: 0.40, target: 4, label: 'Exterior 4' }, { x: 0.82, y: 0.48, target: 5, label: 'Exterior 5' }, { x: 0.51, y: 0.48, target: 14, label: 'Banheiro Sauna' }],
+                    7: [{ x: 0.93, y: 0.50, target: 0, label: 'Home' },{ x: 0.08, y: 0.48, target: 8, label: 'Sala 2' }, { x: 0.92, y: 0.45, target: 9, label: 'Sala 3' }, { x: 0.82, y: 0.50, target: 10, label: 'Cozinha' }, { x: 0.84, y: 0.50, target: 16, label: 'Lavanderia'}, { x: 0.90, y: 0.50, target: 17, label: 'Lavabo' }, { x: 0.87, y: 0.54, target: 12, label: 'Suite 2' }, { x: 0.87, y: 0.51, target: 11, label: 'Suite 1' }, { x: 0.35, y: 0.49, target: 1, label: 'Exterior 1' }, { x: 0.32, y: 0.50, target: 2, label: 'Exterior 2' }, { x: 0.37, y: 0.47, target: 3, label: 'Exterior 3' }, { x: 0.37, y: 0.42, target: 4, label: 'Exterior 4' }, { x: 0.48, y: 0.48, target: 5, label: 'Exterior 5' }, { x: 0.40, y: 0.30, target: 6, label: 'Exterior 6' }, { x: 0.27, y: 0.47, target: 14, label: 'Banheiro Sauna' }],
+                    8: [{ x: 0.11, y: 0.49, target: 0, label: 'Home' },{ x: 0.84, y: 0.45, target: 7, label: 'Sala 1' }, { x: 0.06, y: 0.45, target: 9, label: 'Sala 3' }, { x: 0.01, y: 0.49, target: 10, label: 'Cozinha' }, { x: 0.06, y: 0.49, target: 17, label: 'Lavabo' }, { x: 0.04, y: 0.50, target: 12, label: 'Suite 2' }, {x: 0.04, y: 0.48, target: 11, label: 'Suite 1' }, { x: 0.75, y: 0.50, target: 6, label: 'Exterior 6' }],
+                    9: [{ x: 3.27, y: 0.48, target: 0, label: 'Home' }, { x: 0.65, y: 0.45, target: 7, label: 'Sala 1' }, { x: 0.50, y: 0.52, target: 8, label: 'Sala 2' }, {x: 0.02, y: 0.49, target: 10, label: 'Cozinha' }, { x: 0.07, y: 0.49, target: 16, label: 'Lavanderia' }, { x: 0.18, y: 0.49, target: 17, label: 'Lavabo' }, { x: 0.12, y: 0.55, target: 12, label: 'Suite 2' }, { x: 0.12, y: 0.49, target: 11, label: 'Suite 1' },  { x: 0.60, y: 0.50, target: 6, label: 'Exterior 6' }],
+                    15: [{ x: 0.55, y: 0.50, target: 10, label: 'Cozinha' }, { x: 0.25, y: 0.40, target: 16, label: 'Lavanderia' }],
+                    16: [ { x: 0.20, y: 0.50, target: 15, label: 'Despensa' }, { x: 0.59, y: 0.50, target: 10, label: 'Cozinha'}],
+                    10: [{ x: 0.55, y: 0.49, target: 7, label: 'Sala 1' },{ x: 0.34, y: 0.49, target: 0, label: 'Home' }, { x: 0.50, y: 0.49, target: 8, label: 'Sala 2' }, { x: 0.45, y: 0.44, target: 9, label: 'Sala 3' }, { x: 0.13, y: 0.49, target: 16, label: 'Lavanderia' }, { x: 0.32, y: 0.49, target: 17, label: 'Lavabo' }, { x: 0.28, y: 0.45, target: 12, label: 'Suite 2' }, { x: 0.30, y: 0.40, target: 11, label: 'Suite 1' }],
+                    14: [{ x: 0.55, y: 0.28, target: 4, label: 'Exterior 4' }],
+                    17: [{ x: 0.55, y: 0.40, target: 9, label: 'Sala 3' }],
+                    11: [{ x: 0.72, y: 0.44, target: 9, label: 'Sala 3' }, { x: 0.63, y: 0.43, target: 12, label: 'Suite 2' }],
+                    12: [{ x: 0.45, y: 0.48, target: 11, label: 'Suite 1' }, { x: 0.43, y: 0.48, target: 9, label: 'Sala 3' },{ x: 0.63, y: 0.36, target: 13, label: 'Banheiro Suite 2' }],
+                    13: [{ x: 0.65, y: 0.40, target: 12, label: 'Suite 2'}],
+                };
+            }
+        
+            createHotspots(roomIndex) {
+                this.clearHotspots();
+                
+                const roomHotspots = this.hotspotsData[roomIndex];
+                if (!roomHotspots || roomHotspots.length === 0) {
+                    console.log(`❌ Nenhum hotspot para cômodo ${roomIndex}`);
+                    return;
+                }
+                
+                console.log(`✅ Criando ${roomHotspots.length} hotspots 3D para cômodo ${roomIndex}`);
+                
+                roomHotspots.forEach((data, index) => {
+                    this.createSingleHotspot(data, index);
+                });
+                
+                console.log(`✅ ${roomHotspots.length} hotspots 3D criados!`);
+            }
+            
+            createSingleHotspot(data, index) {
+                if (!THREE) {
+                    console.error('THREE.js não disponível');
+                    return;
+                }
+                
+                const phi = (data.x - 0.5) * Math.PI * 2;
+                const theta = (1 - data.y) * Math.PI;
+                
+                const radius = 480;
+                const x = radius * Math.sin(theta) * Math.cos(phi);
+                const y = radius * Math.cos(theta);
+                const z = radius * Math.sin(theta) * Math.sin(phi);
+                
+                try {
+                    // HOTSPOT MAIS VISÍVEL E CLICÁVEL
+                    const geometry = new THREE.SphereGeometry(8, 16, 16); // Aumentado para melhor clique
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: 0x808080,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    const marker = new THREE.Mesh(geometry, material);
+                    marker.position.set(x, y, z);
+                    marker.userData = { hotspotData: data, hotspotIndex: index };
+                    this.scene.add(marker);
+                    
+                    // ANEL MAIS VISÍVEL
+                    const ringGeometry = new THREE.RingGeometry(10, 13, 16);
+                    const ringMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: 0.8,
+                        side: THREE.DoubleSide
+                    });
+                    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                    ring.position.set(x, y, z);
+                    ring.lookAt(0, 0, 0);
+                    ring.userData = { hotspotData: data, hotspotIndex: index };
+                    this.scene.add(ring);
+                    
+                    this.hotspots.push({
+                        marker,
+                        ring,
+                        data,
+                        position3D: new THREE.Vector3(x, y, z)
+                    });
+                    
+                    console.log(`✅ Hotspot 3D criado: ${data.label}`);
+                } catch (error) {
+                    console.error('Erro ao criar hotspot:', error);
+                }
+            }
+            
+            animate() {
+                this.hotspots.forEach(hotspot => {
+                    if (hotspot.marker) {
+                        hotspot.marker.rotation.y += 0.01;
+                    }
+                });
+            }
+            
+            activateHotspot(data) {
+                try {
+                    console.log(`🚪 Navegando para: ${data.label}`);
+                    
+                    if (data.target !== undefined && data.target >= 0 && data.target < rooms.length) {
+                        changeRoom(data.target);
+                    }
+                } catch (error) {
+                    console.error('Erro ao ativar hotspot:', error);
+                }
+            }
+            
+            clearHotspots() {
+                this.hotspots.forEach(hotspot => {
+                    if (hotspot.marker) this.scene.remove(hotspot.marker);
+                    if (hotspot.ring) this.scene.remove(hotspot.ring);
+                });
+                this.hotspots = [];
+            }
+        }
+
+        // ============= SISTEMA VR APRIMORADO ============= 
+        class AdvancedVRSystem {
+            constructor() {
+                this.isVRActive = false;
+                this.currentMode = null;
+                this.orientation = { alpha: 0, beta: 0, gamma: 0 };
+                this.gazeTarget = null;
+                this.gazeStartTime = 0;
+                this.gazeDuration = 2000;
+                
+                this.vrButton = null;
+                this.vrSelectionScreen = null;
+                this.gyroMode = null;
+                this.stereoMode = null;
+                this.vrNotification = null;
+                
+                this.stereoRendererLeft = null;
+                this.stereoRendererRight = null;
+                this.stereoCameraLeft = null;
+                this.stereoCameraRight = null;
+            }
+            
+            init() {
+                console.log("🥽 Inicializando sistema VR para Safari...");
+                
+                if (!window.scene || !window.camera || !window.renderer) {
+                    setTimeout(() => this.init(), 500);
+                    return;
+                }
+                
+                this.setupElements();
+                this.setupEvents();
+                this.checkDeviceSupport();
+                
+                console.log("✅ Sistema VR inicializado");
+            }
+            
+            setupElements() {
+                this.vrButton = document.getElementById('vrButton');
+                this.vrSelectionScreen = document.getElementById('vrSelectionScreen');
+                this.gyroMode = document.getElementById('gyroMode');
+                this.stereoMode = document.getElementById('stereoMode');
+                this.vrNotification = document.getElementById('vrNotification');
+            }
+            
+            setupEvents() {
+                if (this.vrButton) {
+                    this.vrButton.addEventListener('click', () => this.showVRSelection());
+                    this.vrButton.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.showVRSelection();
+                    }, { passive: false });
+                }
+                
+                const vrCloseBtn = document.getElementById('vrCloseBtn');
+                if (vrCloseBtn) {
+                    vrCloseBtn.addEventListener('click', () => this.hideVRSelection());
+                }
+                
+                const gyroModeBtn = document.getElementById('gyroModeBtn');
+                if (gyroModeBtn) {
+                    gyroModeBtn.addEventListener('click', () => this.enterGyroMode());
+                }
+                
+                const stereoModeBtn = document.getElementById('stereoModeBtn');
+                if (stereoModeBtn) {
+                    stereoModeBtn.addEventListener('click', () => this.enterStereoMode());
+                }
+                
+                const gyroExitBtn = document.getElementById('gyroExitBtn');
+                if (gyroExitBtn) {
+                    gyroExitBtn.addEventListener('click', () => this.exitVR());
+                }
+                
+                const stereoExitBtn = document.getElementById('stereoExitBtn');
+                if (stereoExitBtn) {
+                    stereoExitBtn.addEventListener('click', () => this.exitVR());
+                }
+                
+                this.setupOrientationEvents();
+            }
+            
+            setupOrientationEvents() {
+                // Configurar eventos de orientação com suporte ao Safari
+                if (typeof DeviceOrientationEvent !== 'undefined') {
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        // iOS 13+ Safari
+                        console.log("📱 iOS Safari detectado - permissão será solicitada");
+                    } else {
+                        // Android e versões antigas do iOS
+                        window.addEventListener('deviceorientation', (e) => this.handleOrientation(e), { passive: true });
+                        console.log("📱 Giroscópio configurado para Safari");
+                    }
+                } else {
+                    console.log("⚠️ Giroscópio não disponível");
+                }
+            }
+            
+            async requestOrientationPermission() {
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission === 'granted') {
+                            window.addEventListener('deviceorientation', (e) => this.handleOrientation(e), { passive: true });
+                            console.log("✅ Permissão Safari concedida");
+                            return true;
+                        } else {
+                            console.log("❌ Permissão Safari negada");
+                            this.showNotification("⚠️ Permissão de giroscópio necessária para VR");
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error("Erro permissão Safari:", error);
+                        return false;
+                    }
+                } else {
+                    return true;
+                }
+            }
+            
+            handleOrientation(event) {
+                if (!this.isVRActive) return;
+                
+                this.orientation.alpha = event.alpha || 0;
+                this.orientation.beta = event.beta || 0;
+                this.orientation.gamma = event.gamma || 0;
+                
+                this.applyOrientationToCamera();
+            }
+            
+            applyOrientationToCamera() {
+                if (!this.isVRActive) return;
+                
+                const alpha = (this.orientation.alpha * Math.PI) / 180;
+                const beta = (this.orientation.beta * Math.PI) / 180;
+                
+                const targetRotationY = -alpha;
+                const targetRotationX = Math.max(-Math.PI/3, Math.min(Math.PI/3, beta - Math.PI/2));
+                
+                if (this.currentMode === 'gyro') {
+                    window.targetRotationY = targetRotationY;
+                    window.targetRotationX = targetRotationX;
+                } else if (this.currentMode === 'stereo') {
+                    if (this.stereoCameraLeft && this.stereoCameraRight) {
+                        this.stereoCameraLeft.rotation.y = targetRotationY;
+                        this.stereoCameraLeft.rotation.x = targetRotationX;
+                        this.stereoCameraRight.rotation.y = targetRotationY;
+                        this.stereoCameraRight.rotation.x = targetRotationX;
+                    }
+                }
+            }
+            
+            checkDeviceSupport() {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const hasOrientation = 'DeviceOrientationEvent' in window;
+                const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                const isMobileScreen = window.innerWidth <= 1024;
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                
+                if ((isMobile || isTouch || isMobileScreen || isSafari) && hasOrientation) {
+                    this.vrButton.style.display = 'flex';
+                    console.log("📱 VR disponível - Safari suportado");
+                } else {
+                    this.vrButton.style.display = 'none';
+                    console.log("💻 VR desabilitado");
+                }
+            }
+            
+            showVRSelection() {
+                console.log("🥽 Abrindo seleção VR");
+                if (this.vrSelectionScreen) {
+                    this.vrSelectionScreen.style.display = 'flex';
+                    setTimeout(() => {
+                        this.vrSelectionScreen.classList.add('visible');
+                    }, 50);
+                }
+            }
+            
+            hideVRSelection() {
+                if (this.vrSelectionScreen) {
+                    this.vrSelectionScreen.classList.remove('visible');
+                    setTimeout(() => {
+                        this.vrSelectionScreen.style.display = 'none';
+                    }, 400);
+                }
+            }
+            
+            async enterGyroMode() {
+                console.log("📱 Entrando modo VR livre");
+                
+                const hasPermission = await this.requestOrientationPermission();
+                if (!hasPermission) {
+                    this.hideVRSelection();
+                    return;
+                }
+                
+                this.hideVRSelection();
+                this.currentMode = 'gyro';
+                this.isVRActive = true;
+                
+                this.setupGyroRenderer();
+                
+                if (this.gyroMode) {
+                    this.gyroMode.classList.add('active');
+                }
+                
+                // Fullscreen com fallback para Safari
+                this.requestFullscreen(this.gyroMode);
+                
+                this.showNotification("📱 Modo VR Livre Ativado!");
+            }
+            
+            async enterStereoMode() {
+                console.log("🥽 Entrando modo VR estereoscópico");
+                
+                const hasPermission = await this.requestOrientationPermission();
+                if (!hasPermission) {
+                    this.hideVRSelection();
+                    return;
+                }
+                
+                this.hideVRSelection();
+                this.currentMode = 'stereo';
+                this.isVRActive = true;
+                
+                this.setupStereoRenderers();
+                
+                if (this.stereoMode) {
+                    this.stereoMode.classList.add('active');
+                }
+                
+                this.requestFullscreen(this.stereoMode);
+                
+                const crosshairLeft = document.getElementById('stereoCrosshairLeft');
+                const crosshairRight = document.getElementById('stereoCrosshairRight');
+                if (crosshairLeft) crosshairLeft.classList.add('show');
+                if (crosshairRight) crosshairRight.classList.add('show');
+                
+                this.showNotification("🥽 Modo VR Imersivo Ativado!");
+                this.startStereoRenderLoop();
+                this.startGazeDetection();
+            }
+            
+            requestFullscreen(element) {
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.webkitRequestFullscreen) {
+                    // Safari
+                    element.webkitRequestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                    // Firefox
+                    element.mozRequestFullScreen();
+                } else if (element.msRequestFullscreen) {
+                    // IE/Edge
+                    element.msRequestFullscreen();
+                }
+            }
+            
+            setupGyroRenderer() {
+                const gyroViewer = document.getElementById('gyroViewer');
+                if (!gyroViewer || !window.renderer) return;
+                
+                gyroViewer.innerHTML = '';
+                gyroViewer.appendChild(window.renderer.domElement);
+                
+                const gyroStatus = document.getElementById('gyroStatus');
+                if (gyroStatus) {
+                    gyroStatus.textContent = "📱 Modo Livre Ativo";
+                }
+            }
+            
+            setupStereoRenderers() {
+                const canvasLeft = document.getElementById('stereoCanvasLeft');
+                const canvasRight = document.getElementById('stereoCanvasRight');
+                
+                if (!canvasLeft || !canvasRight || !window.THREE) return;
+                
+                try {
+                    const width = canvasLeft.clientWidth;
+                    const height = canvasLeft.clientHeight;
+                    
+                    this.stereoRendererLeft = new THREE.WebGLRenderer({ 
+                        canvas: canvasLeft,
+                        antialias: true 
+                    });
+                    this.stereoRendererLeft.setSize(width, height);
+                    
+                    this.stereoRendererRight = new THREE.WebGLRenderer({ 
+                        canvas: canvasRight,
+                        antialias: true 
+                    });
+                    this.stereoRendererRight.setSize(width, height);
+                    
+                    this.stereoCameraLeft = window.camera.clone();
+                    this.stereoCameraRight = window.camera.clone();
+                    
+                    const eyeSeparation = 0.032;
+                    this.stereoCameraLeft.position.x = -eyeSeparation;
+                    this.stereoCameraRight.position.x = eyeSeparation;
+                    
+                    console.log("✅ Renderizadores estéreo configurados");
+                } catch (error) {
+                    console.error("❌ Erro renderizadores:", error);
+                }
+            }
+            
+            startStereoRenderLoop() {
+                if (!this.isVRActive || this.currentMode !== 'stereo') return;
+                
+                if (this.stereoRendererLeft && this.stereoRendererRight && window.scene) {
+                    this.stereoCameraLeft.rotation.copy(window.camera.rotation);
+                    this.stereoCameraRight.rotation.copy(window.camera.rotation);
+                    
+                    this.stereoRendererLeft.render(window.scene, this.stereoCameraLeft);
+                    this.stereoRendererRight.render(window.scene, this.stereoCameraRight);
+                }
+                
+                requestAnimationFrame(() => this.startStereoRenderLoop());
+            }
+            
+            startGazeDetection() {
+                if (!this.isVRActive || this.currentMode !== 'stereo') return;
+                
+                this.detectGaze();
+                requestAnimationFrame(() => this.startGazeDetection());
+            }
+            
+            detectGaze() {
+                if (!this.isVRActive || !window.hotspotSystem || !window.raycaster || !window.mouse) return;
+                
+                window.mouse.x = 0;
+                window.mouse.y = 0;
+                window.raycaster.setFromCamera(window.mouse, window.camera);
+                
+                const hotspots = window.hotspotSystem.hotspots.map(h => h.marker).filter(m => m);
+                const intersects = window.raycaster.intersectObjects(hotspots);
+                
+                if (intersects.length > 0) {
+                    const target = intersects[0].object;
+                    
+                    if (target !== this.gazeTarget) {
+                        this.gazeTarget = target;
+                        this.gazeStartTime = Date.now();
+                        this.showGazeProgress();
+                    }
+                    
+                    const elapsed = Date.now() - this.gazeStartTime;
+                    const progress = Math.min(elapsed / this.gazeDuration, 1);
+                    
+                    this.updateGazeProgress(progress);
+                    
+                    if (progress >= 1) {
+                        this.activateGazeTarget();
+                    }
+                    
+                } else {
+                    this.clearGaze();
+                }
+            }
+            
+            showGazeProgress() {
+                const progressEl = document.getElementById('stereoProgress');
+                if (progressEl) {
+                    progressEl.classList.add('show');
+                }
+            }
+            
+            updateGazeProgress(progress) {
+                const progressBar = document.getElementById('stereoProgressBar');
+                if (progressBar) {
+                    progressBar.style.width = (progress * 100) + '%';
+                }
+            }
+            
+            clearGaze() {
+                this.gazeTarget = null;
+                this.gazeStartTime = 0;
+                
+                const progressEl = document.getElementById('stereoProgress');
+                const progressBar = document.getElementById('stereoProgressBar');
+                
+                if (progressEl) progressEl.classList.remove('show');
+                if (progressBar) progressBar.style.width = '0%';
+            }
+            
+            activateGazeTarget() {
+                if (this.gazeTarget && this.gazeTarget.userData.hotspotData) {
+                    const data = this.gazeTarget.userData.hotspotData;
+                    console.log(`🥽 VR Gaze: ${data.label}`);
+                    
+                    if (navigator.vibrate) {
+                        navigator.vibrate([100, 50, 100]);
+                    }
+                    
+                    if (window.hotspotSystem) {
+                        window.hotspotSystem.activateHotspot(data);
+                    }
+                    
+                    this.clearGaze();
+                }
+            }
+            
+            exitVR() {
+                console.log("🚪 Saindo VR");
+                
+                this.isVRActive = false;
+                this.currentMode = null;
+                this.clearGaze();
+                
+                if (this.gyroMode) this.gyroMode.classList.remove('active');
+                if (this.stereoMode) this.stereoMode.classList.remove('active');
+                
+                const viewer = document.getElementById('viewer');
+                if (viewer && window.renderer) {
+                    viewer.innerHTML = '';
+                    viewer.appendChild(window.renderer.domElement);
+                }
+                
+                // Sair fullscreen com fallback Safari
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                
+                const elements = ['stereoCrosshairLeft', 'stereoCrosshairRight', 'stereoProgress'];
+                elements.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('show');
+                });
+                
+                this.showNotification("📱 VR Desativado");
+            }
+            
+            showNotification(message) {
+                if (this.vrNotification) {
+                    this.vrNotification.innerHTML = message;
+                    this.vrNotification.classList.add('show');
+                    
+                    setTimeout(() => {
+                        this.vrNotification.classList.remove('show');
+                    }, 3000);
+                }
+            }
+        }
+
+        // ============= VARIÁVEIS GLOBAIS ============= 
         let scene, camera, renderer, sphere;
         let isMouseDown = false;
         let mouseX = 0, mouseY = 0;
         let targetRotationX = 0, targetRotationY = 0;
         let rotationX = 0, rotationY = 0;
-        let autoRotate = false;
-        let currentRoom = 1; // Começa no EXTERIOR1
+        let currentRoom = 1;
+        let hotspotSystem;
+        let raycaster, mouse;
+        let vrSystem;
         
-        // ===== NOVO: Sistema VR Mobile =====
-        let vrMobileEnabled = false;
-        let deviceOrientationPermissionGranted = false;
-        let calibrationOffset = { alpha: 0, beta: 0, gamma: 0 };
-        let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
-        let previousOrientation = { alpha: 0, beta: 0, gamma: 0 };
-        let smoothFactor = 0.15; // Reduzido para movimento mais suave
-        let sensitivity = 0.8; // Reduzido para menos sensibilidade
-        let isCalibrating = false;
-        let frameCount = 0;
-        
-        // Dados dos cômodos
         const rooms = [
-            {
-                name: "Home",
-                description: "Entrada principal da residência com vista panorâmica.",
-                texturePath: "HOME.jpg" 
-            },
-            {
-                name: "Exterior 1",
-                description: "Vista frontal da propriedade com jardim e fachada.",
-                texturePath: "EXTERIOR1.jpg" 
-            },
-            {
-                name: "Exterior 2", 
-                description: "Área lateral da casa com acesso ao quintal.",
-                texturePath: "EXTERIOR2.jpg" 
-            },
-            {
-                name: "Exterior 3",
-                description: "Quintal com área de lazer e piscina.",
-                texturePath: "EXTERIOR3.jpg" 
-            },
-            {
-                name: "Exterior 4",
-                description: "Área da churrasqueira e espaço gourmet.",
-                texturePath: "EXTERIOR4.jpg" 
-            },
-            {
-                name: "Exterior 5",
-                description: "Vista dos fundos da propriedade.",
-                texturePath: "EXTERIOR5.jpg" 
-            },
-            {
-             name: "Exterior 6",
-                description: "Vista dos fundos da propriedade.",
-                texturePath: "EXTERIOR6.jpg" 
-            },
-            {
-                name: "Sala 1",
-                description: "Sala de estar principal com mobiliário moderno.",
-                texturePath: "SALA1.jpg" 
-            },
-            {
-                name: "Sala 2",
-                description: "Sala de jantar integrada com cozinha.",
-                texturePath: "SALA2.jpg" 
-            },
-            {
-                name: "Sala 3",
-                description: "Sala de TV e descanso.",
-                texturePath: "SALA3.jpg" 
-            },
-            {
-                name: "Cozinha",
-                description: "Cozinha completa com ilha central e bancadas em granito.",
-                texturePath: "COZINHA.jpg" 
-            },
-            {
-                name: "Suite 1",
-                description: "Suíte master com closet e vista para o jardim.",
-                texturePath: "QUARTO1.jpg" 
-            },
-            {
-                name: "Suite 2",
-                description: "Quarto de hóspedes confortável com banheiro privativo.",
-                texturePath: "QUARTO2.jpg" 
-            },
-            {
-                name: "Banheiro Suite 2",
-                description: "Banheiro elegante com acabamentos de luxo.",
-                texturePath: "BANHEIROQUARTO2.jpg" 
-            },
-            {
-                name: "Banheiro Sauna",
-                description: "Banheiro anexo à sauna com chuveiro e área de descanso.",
-                texturePath: "BANHEIROSAUNA.jpg" 
-            },
-            {
-                name: "Despensa",
-                description: "Espaço de armazenamento prático para alimentos e utensílios.",
-                texturePath: "DESPENSA.jpg" 
-            },
-            {
-                name: "Lavanderia",
-                description: "Área de serviço completa com máquinas de lavar e secar.",
-                texturePath: "LAVANDERIA.jpg" 
-            },
-            {
-                name: "Lavabo",
-                description: "Lavabo social com design moderno.",
-                texturePath: "LAVABO.jpg" 
-            }
+            { texturePath: "HOME.jpg" },
+            { texturePath: "EXTERIOR1.jpg"},
+            { texturePath: "EXTERIOR2.jpg"},
+            { texturePath: "EXTERIOR3.jpg" },
+            { texturePath: "EXTERIOR4.jpg" },
+            { texturePath: "EXTERIOR5.jpg"},
+            { texturePath: "EXTERIOR6.jpg"},
+            { texturePath: "SALA1.jpg"},
+            { texturePath: "SALA2.jpg" },
+            { texturePath: "SALA3.jpg"},
+            { texturePath: "COZINHA.jpg"},
+            { texturePath: "QUARTO1.jpg"},
+            { texturePath: "QUARTO2.jpg" },
+            { texturePath: "BANHEIROQUARTO2.jpg"},
+            { texturePath: "BANHEIROSAUNA.jpg"},
+            { texturePath: "DESPENSA.jpg"},
+            { texturePath: "LAVANDERIA.jpg"},
+            { texturePath: "LAVABO.jpg" }
         ];
 
-        // Sistema de navegação
-        const hotspots = {
-            0: [],
-            1: [{ x: 0.6, y: 0.4, target: 2, label: 'Exterior 2' }],
-            2: [{ x: 0.2, y: 0.4, target: 1, label: 'Exterior 1' }, { x: 0.8, y: 0.4, target: 3, label: 'Exterior 3' }],
-            3: [{ x: 0.1, y: 0.3, target: 1, label: 'Exterior 1' }, { x: 0.3, y: 0.5, target: 2, label: 'Exterior 2' }, { x: 0.7, y: 0.3, target: 4, label: 'Exterior 4' }],
-            4: [{ x: 0.1, y: 0.2, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.4, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.6, target: 3, label: 'Exterior 3' }, { x: 0.7, y: 0.3, target: 5, label: 'Exterior 5' }, { x: 0.9, y: 0.5, target: 14, label: 'Banheiro Sauna' }],
-            5: [{ x: 0.1, y: 0.1, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.3, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.5, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.7, target: 4, label: 'Exterior 4' }, { x: 0.7, y: 0.3, target: 6, label: 'Exterior 6' }, { x: 0.9, y: 0.4, target: 14, label: 'Banheiro Sauna' }],
-            6: [{ x: 0.5, y: 0.8, target: 7, label: 'Sala 1' }, { x: 0.1, y: 0.1, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.2, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.3, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.4, target: 4, label: 'Exterior 4' }, { x: 0.6, y: 0.2, target: 5, label: 'Exterior 5' }],
-            7: [{ x: 0.1, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.2, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.3, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.4, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.5, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.6, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.7, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            8: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.3, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.4, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.5, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.6, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.7, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            9: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.4, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.5, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.6, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.7, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            10: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.4, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.5, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.6, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.7, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            11: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.4, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.5, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.6, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.7, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            12: [{ x: 0.3, y: 0.5, target: 11, label: 'Suite 1' }, { x: 0.7, y: 0.3, target: 13, label: 'Banheiro Suite 2' }, { x: 0.5, y: 0.8, target: 9, label: 'Sala 3' }],
-            13: [{ x: 0.5, y: 0.8, target: 12, label: 'Suite 2' }],
-            14: [{ x: 0.3, y: 0.7, target: 4, label: 'Exterior 4' }, { x: 0.7, y: 0.7, target: 5, label: 'Exterior 5' }],
-            15: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.4, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.5, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.6, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.7, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.8, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            16: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.4, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.5, y: 0.1, target: 15, label: 'Despensa' }, { x: 0.6, y: 0.1, target: 17, label: 'Lavabo' }, { x: 0.7, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.8, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }],
-            17: [{ x: 0.1, y: 0.1, target: 7, label: 'Sala 1' }, { x: 0.2, y: 0.1, target: 8, label: 'Sala 2' }, { x: 0.3, y: 0.1, target: 9, label: 'Sala 3' }, { x: 0.4, y: 0.1, target: 10, label: 'Cozinha' }, { x: 0.5, y: 0.1, target: 15, label: 'Despensa' }, { x: 0.6, y: 0.1, target: 16, label: 'Lavanderia' }, { x: 0.7, y: 0.1, target: 12, label: 'Suite 2' }, { x: 0.8, y: 0.1, target: 11, label: 'Suite 1' }, { x: 0.1, y: 0.9, target: 1, label: 'Exterior 1' }, { x: 0.2, y: 0.9, target: 2, label: 'Exterior 2' }, { x: 0.3, y: 0.9, target: 3, label: 'Exterior 3' }, { x: 0.4, y: 0.9, target: 4, label: 'Exterior 4' }, { x: 0.5, y: 0.9, target: 5, label: 'Exterior 5' }, { x: 0.6, y: 0.9, target: 6, label: 'Exterior 6' }]
+        let floorPlanMenu = {
+            isOpen: false,
+            currentRoom: 1
         };
 
-        // Posições dos hotspots na planta baixa
-        const humanizedPlanHotspotPositions = [
-            { x: 50, y: 50, name: "Home" },
-            { x: 20, y: 30, name: "Ext 1" },
-            { x: 30, y: 20, name: "Ext 2" },
-            { x: 40, y: 25, name: "Ext 3" },
-            { x: 50, y: 20, name: "Ext 4" },
-            { x: 60, y: 30, name: "Ext 5" },
-            { x: 70, y: 40, name: "Ext 6" },
-            { x: 45, y: 60, name: "Sala 1" },
-            { x: 55, y: 70, name: "Sala 2" },
-            { x: 65, y: 65, name: "Sala 3" },
-            { x: 60, y: 80, name: "Cozinha" },
-            { x: 30, y: 75, name: "Suite 1" },
-            { x: 20, y: 85, name: "Suite 2" },
-            { x: 15, y: 90, name: "Banh S2" },
-            { x: 80, y: 50, name: "Banh Sauna" },
-            { x: 70, y: 85, name: "Despensa" },
-            { x: 80, y: 90, name: "Lavanderia" },
-            { x: 75, y: 75, name: "Lavabo" }
-        ];
+        // ============= SISTEMA DA PLANTA BAIXA ============= 
+        function initializeFloorPlanMenu() {
+            const toggleBtn = document.getElementById('floorPlanToggle');
+            const closeBtn = document.getElementById('closeMenuBtn');
+            const overlay = document.getElementById('menuOverlay');
+            const hotspots = document.querySelectorAll('.plan-hotspot');
 
-        // ===== FUNÇÕES VR MOBILE =====
-        async function toggleVRMobile() {
-            const vrBtn = document.getElementById('vr-mobile-toggle');
-            const vrStatus = document.getElementById('vr-status');
-            
-            if (!vrMobileEnabled) {
-                try {
-                    // Verificar se o dispositivo suporta sensores
-                    if (!window.DeviceOrientationEvent) {
-                        alert('❌ Seu dispositivo não suporta sensores de orientação');
-                        return;
-                    }
-                    
-                    // Para iOS 13+ solicitar permissão
-                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                        const permission = await DeviceOrientationEvent.requestPermission();
-                        if (permission !== 'granted') {
-                            alert('❌ Permissão negada para acessar sensores');
-                            return;
-                        }
-                        deviceOrientationPermissionGranted = true;
-                    } else {
-                        deviceOrientationPermissionGranted = true;
-                    }
-                    
-                    // Ativar VR Mobile
-                    vrMobileEnabled = true;
-                    vrBtn.classList.add('active');
-                    vrBtn.title = 'Desativar Modo VR Mobile';
-                    vrStatus.classList.add('active');
-                    vrStatus.innerHTML = '📱 Modo VR: Ativo - Mova seu celular!';
-                    
-                    // Adicionar listener de orientação
-                    window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
-                    
-                    // Calibrar automaticamente após 1 segundo
-                    setTimeout(() => {
-                        calibrateVRMobile();
-                    }, 1000);
-                    
-                    console.log('VR Mobile ativado');
-                    
-                } catch (error) {
-                    console.error('Erro ao ativar VR Mobile:', error);
-                    alert('❌ Erro ao acessar sensores do dispositivo');
-                }
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', toggleFloorPlanMenu);
+                // Touch events para Safari iOS
+                toggleBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    toggleFloorPlanMenu();
+                }, { passive: false });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeFloorPlanMenu);
+                closeBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    closeFloorPlanMenu();
+                }, { passive: false });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('click', closeFloorPlanMenu);
+            }
+
+            hotspots.forEach(hotspot => {
+                const roomIndex = parseInt(hotspot.dataset.room);
+                hotspot.addEventListener('click', () => navigateToRoomFromPlan(roomIndex));
+                // Touch events para Safari iOS
+                hotspot.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    navigateToRoomFromPlan(roomIndex);
+                }, { passive: false });
+            });
+
+            updateFloorPlanCurrentRoom(currentRoom);
+        }
+
+        function toggleFloorPlanMenu() {
+            if (floorPlanMenu.isOpen) {
+                closeFloorPlanMenu();
             } else {
-                // Desativar VR Mobile
-                vrMobileEnabled = false;
-                vrBtn.classList.remove('active');
-                vrBtn.title = 'Ativar Modo VR Mobile';
-                vrStatus.classList.remove('active');
-                
-                // Remover listener
-                window.removeEventListener('deviceorientation', handleDeviceOrientation);
-                
-                console.log('VR Mobile desativado');
+                openFloorPlanMenu();
             }
         }
 
-        function handleDeviceOrientation(event) {
-            if (!vrMobileEnabled || isCalibrating) return;
+        function openFloorPlanMenu() {
+            const menu = document.getElementById('floorPlanMenu');
+            const overlay = document.getElementById('menuOverlay');
+            const toggleBtn = document.getElementById('floorPlanToggle');
             
-            // Incrementa contador de frames para suavização inicial
-            frameCount++;
+            menu.classList.add('visible');
+            overlay.classList.add('visible');
+            toggleBtn.classList.add('active');
+            toggleBtn.title = 'Fechar Planta Baixa';
             
-            let alpha = event.alpha || 0; // Rotação Z (compass)
-            let beta = event.beta || 0;   // Rotação X (tilt front/back)
-            let gamma = event.gamma || 0; // Rotação Y (tilt left/right)
-            
-            // Normalizar valores e tratar descontinuidades
-            alpha = normalizeAngle(alpha);
-            beta = normalizeAngle(beta);
-            gamma = normalizeAngle(gamma);
-            
-            // Aplicar calibração
-            let calibratedAlpha = normalizeAngle(alpha - calibrationOffset.alpha);
-            let calibratedBeta = normalizeAngle(beta - calibrationOffset.beta);
-            let calibratedGamma = normalizeAngle(gamma - calibrationOffset.gamma);
-            
-            // Detectar saltos grandes e ignorar (antiglitch)
-            if (frameCount > 10) { // Após os primeiros frames
-                const alphaDiff = Math.abs(calibratedAlpha - previousOrientation.alpha);
-                const betaDiff = Math.abs(calibratedBeta - previousOrientation.beta);
-                const gammaDiff = Math.abs(calibratedGamma - previousOrientation.gamma);
-                
-                // Se mudança for muito brusca, ignore este frame
-                if (alphaDiff > 45 || betaDiff > 45 || gammaDiff > 45) {
-                    return;
-                }
-            }
-            
-            // Aplicar zona morta para pequenos movimentos (reduz tremor)
-            const deadZone = 0.5;
-            if (Math.abs(calibratedAlpha - currentOrientation.alpha) < deadZone) {
-                calibratedAlpha = currentOrientation.alpha;
-            }
-            if (Math.abs(calibratedBeta - currentOrientation.beta) < deadZone) {
-                calibratedBeta = currentOrientation.beta;
-            }
-            if (Math.abs(calibratedGamma - currentOrientation.gamma) < deadZone) {
-                calibratedGamma = currentOrientation.gamma;
-            }
-            
-            // Salvar orientação anterior
-            previousOrientation.alpha = calibratedAlpha;
-            previousOrientation.beta = calibratedBeta;
-            previousOrientation.gamma = calibratedGamma;
-            
-            // Suavizar movimento com interpolação mais lenta
-            currentOrientation.alpha = lerp(currentOrientation.alpha, calibratedAlpha, smoothFactor);
-            currentOrientation.beta = lerp(currentOrientation.beta, calibratedBeta, smoothFactor);
-            currentOrientation.gamma = lerp(currentOrientation.gamma, calibratedGamma, smoothFactor);
-            
-            // Aplicar rotação VR apenas a cada 2 frames (reduz processamento)
-            if (frameCount % 2 === 0) {
-                updateVRMobileRotation();
-            }
-            
-            // Atualizar status a cada 10 frames
-            if (frameCount % 10 === 0) {
-                updateVRStatus();
-            }
+            floorPlanMenu.isOpen = true;
         }
 
-        // Nova função para normalizar ângulos e evitar saltos
-        function normalizeAngle(angle) {
-            while (angle > 180) angle -= 360;
-            while (angle < -180) angle += 360;
-            return angle;
+        function closeFloorPlanMenu() {
+            const menu = document.getElementById('floorPlanMenu');
+            const overlay = document.getElementById('menuOverlay');
+            const toggleBtn = document.getElementById('floorPlanToggle');
+            
+            menu.classList.remove('visible');
+            overlay.classList.remove('visible');
+            toggleBtn.classList.remove('active');
+            toggleBtn.title = 'Abrir Planta Baixa';
+            
+            floorPlanMenu.isOpen = false;
         }
 
-        function updateVRMobileRotation() {
-            const { alpha, beta, gamma } = currentOrientation;
+        function navigateToRoomFromPlan(roomIndex) {
+            if (roomIndex === currentRoom) return;
             
-            // Converter para radianos com sensibilidade reduzida
-            const rotationXVR = -beta * sensitivity * (Math.PI / 180);
-            const rotationYVR = alpha * sensitivity * (Math.PI / 180);
-            
-            // Limitar rotação vertical para evitar inversão estranha
-            const maxVerticalRotation = Math.PI / 3; // 60 graus para cima/baixo
-            const clampedRotationX = Math.max(-maxVerticalRotation, Math.min(maxVerticalRotation, rotationXVR));
-            
-            // Aplicar rotações suavemente
-            targetRotationX = clampedRotationX;
-            targetRotationY = rotationYVR;
-            
-            // Ignorar rotação Z (roll) para melhor experiência
-            // const rotationZVR = gamma * sensitivity * 0.1 * (Math.PI / 180);
+            console.log(`🗺️ Navegando via planta para sala ${roomIndex}`);
+            changeRoom(roomIndex);
+            closeFloorPlanMenu();
         }
 
-        function updateVRStatus() {
-            const vrStatus = document.getElementById('vr-status');
-            if (vrMobileEnabled) {
-                const { alpha, beta, gamma } = currentOrientation;
-                vrStatus.innerHTML = `📱 VR: 🧭${alpha.toFixed(1)}° 📐${beta.toFixed(1)}° 🔄${gamma.toFixed(1)}°`;
+        function updateFloorPlanCurrentRoom(roomIndex) {
+            document.querySelectorAll('.plan-hotspot').forEach(hotspot => {
+                hotspot.classList.remove('active');
+            });
+            
+            const currentHotspot = document.querySelector(`[data-room="${roomIndex}"]`);
+            if (currentHotspot) {
+                currentHotspot.classList.add('active');
             }
+            
+            floorPlanMenu.currentRoom = roomIndex;
         }
 
-        function calibrateVRMobile() {
-            if (!vrMobileEnabled) return;
-            
-            isCalibrating = true;
-            frameCount = 0;
-            
-            const vrStatus = document.getElementById('vr-status');
-            vrStatus.classList.add('calibrating');
-            vrStatus.innerHTML = '🎯 Calibrando... Mantenha o celular estável (3s)';
-            
-            // Resetar orientações
-            currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
-            previousOrientation = { alpha: 0, beta: 0, gamma: 0 };
-            
-            // Capturar múltiplas amostras para calibração mais estável
-            let samples = [];
-            let sampleCount = 0;
-            const totalSamples = 15; // 15 amostras em 3 segundos
-            
-            const calibrationHandler = (event) => {
-                samples.push({
-                    alpha: event.alpha || 0,
-                    beta: event.beta || 0,
-                    gamma: event.gamma || 0
-                });
-                sampleCount++;
-                
-                // Atualizar progresso
-                const progress = Math.round((sampleCount / totalSamples) * 100);
-                vrStatus.innerHTML = `🎯 Calibrando... ${progress}%`;
-                
-                if (sampleCount >= totalSamples) {
-                    // Calcular média das amostras
-                    calibrationOffset.alpha = samples.reduce((sum, s) => sum + s.alpha, 0) / samples.length;
-                    calibrationOffset.beta = samples.reduce((sum, s) => sum + s.beta, 0) / samples.length;
-                    calibrationOffset.gamma = samples.reduce((sum, s) => sum + s.gamma, 0) / samples.length;
-                    
-                    window.removeEventListener('deviceorientation', calibrationHandler);
-                    
-                    isCalibrating = false;
-                    vrStatus.classList.remove('calibrating');
-                    vrStatus.innerHTML = '✅ Calibrado! Mova seu celular suavemente';
-                    
-                    // Resetar posição da câmera
-                    targetRotationX = 0;
-                    targetRotationY = 0;
-                    
-                    setTimeout(() => {
-                        if (vrMobileEnabled) {
-                            updateVRStatus();
-                        }
-                    }, 3000);
-                }
-            };
-            
-            window.addEventListener('deviceorientation', calibrationHandler);
-        }
-
-        function lerp(start, end, factor) {
-            return start + (end - start) * factor;
-        }
-
-        // ===== FUNÇÕES ORIGINAIS MODIFICADAS =====
+        // ============= SISTEMA PRINCIPAL ============= 
         function init() {
-            console.log("Inicializando tour...");
+            console.log("🎬 Inicializando Three.js - Safari otimizado...");
             
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(
-                75,
-                window.innerWidth / window.innerHeight,
-                0.1,
-                1000
-            );
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 0, 0);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                preserveDrawingBuffer: true // Safari fix
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
+            
+            if (typeof THREE !== 'undefined') {
+                raycaster = new THREE.Raycaster();
+                mouse = new THREE.Vector2();
+                // Configurar raycaster para melhor precisão
+                raycaster.params.Points.threshold = 0.1;
+                console.log("✅ Raycaster Safari configurado");
+            }
             
             const viewer = document.getElementById('viewer');
             if (viewer) {
                 viewer.innerHTML = '';
                 viewer.appendChild(renderer.domElement);
-                console.log("Renderer adicionado ao viewer");
-            } else {
-                console.error("Elemento viewer não encontrado!");
-                return;
             }
+            
+            hotspotSystem = new InteractiveHotspotSystem(scene, camera, renderer);
+            vrSystem = new AdvancedVRSystem();
+            vrSystem.init();
 
-            createPanoramaSphere();
-            setupEventListeners();
+            createEnvironment();
+            setupControls();
 
             setTimeout(() => {
                 const loading = document.getElementById('loading');
                 if (loading) {
                     loading.style.display = 'none';
-                    console.log("Loading ocultado");
                 }
             }, 2000);
 
+            initializeFloorPlanMenu();
             animate();
-            console.log("Tour inicializado com sucesso!");
+            console.log(`✅ Tour Safari inicializado!`);
         }
-        
-        function createPanoramaSphere() {
-            console.log("Criando esfera panorâmica para o cômodo:", currentRoom, rooms[currentRoom].name);
+
+        function createEnvironment() {
+            console.log(`🌍 Criando ambiente sala ${currentRoom}`);
             
             const geometry = new THREE.SphereGeometry(500, 32, 32);
             geometry.scale(-1, 1, 1);
-
-            let material;
 
             const textureLoader = new THREE.TextureLoader();
             textureLoader.load(
                 rooms[currentRoom].texturePath,
                 (texture) => {
-                    console.log("Textura carregada com sucesso:", rooms[currentRoom].texturePath);
+                    console.log("✅ Textura carregada");
                     if (sphere) {
                         sphere.geometry.dispose();
                         sphere.material.dispose();
                         scene.remove(sphere);
                     }
-                    material = new THREE.MeshBasicMaterial({ map: texture });
+                    const material = new THREE.MeshBasicMaterial({ map: texture });
                     sphere = new THREE.Mesh(geometry, material);
                     scene.add(sphere);
-
-                    const placeholder = document.querySelector('.photo-placeholder');
-                    if (placeholder) {
-                        placeholder.style.display = 'none';
-                    }
                 },
                 undefined,
                 (error) => {
-                    console.log("Erro ao carregar textura, usando textura dinâmica:", error);
-                    const texture = createRoomTexture(currentRoom);
+                    console.log("⚠️ Usando textura placeholder");
+                    const texture = createPlaceholderTexture();
                     if (sphere) {
                         sphere.geometry.dispose();
                         sphere.material.dispose();
                         scene.remove(sphere);
                     }
-                    material = new THREE.MeshBasicMaterial({ map: texture });
+                    const material = new THREE.MeshBasicMaterial({ map: texture });
                     sphere = new THREE.Mesh(geometry, material);
                     scene.add(sphere);
-
-                    const placeholder = document.querySelector('.photo-placeholder');
-                    if (placeholder) {
-                        placeholder.style.display = 'block';
-                    }
                 }
             );
         }
 
-        function createRoomTexture(roomIndex) {
+        function createPlaceholderTexture() {
             const canvas = document.createElement('canvas');
-            canvas.width = 4096;
-            canvas.height = 2048;
+            canvas.width = 2048;
+            canvas.height = 1024;
             const ctx = canvas.getContext('2d');
 
-            const roomConfigs = [
-                { colors: ['#F5DEB3', '#D2B48C'], text: "Hall de Entrada" },
-                { colors: ['#A9D18E', '#8BC34A'], text: "Jardim Frontal" },
-                { colors: ['#B0E0E6', '#87CEEB'], text: "Lateral da Casa" },
-                { colors: ['#FFDAB9', '#FFA07A'], text: "Piscina e Área de Lazer" },
-                { colors: ['#F0E68C', '#DAA520'], text: "Espaço Gourmet" },
-                { colors: ['#ADD8E6', '#87CEFA'], text: "Fundos da Propriedade" },
-                { colors: ['#C0C0C0', '#A9A9A9'], text: "Varanda" },
-                { colors: ['#FFF8DC', '#F0E68C'], text: "Sala de Estar" },
-                { colors: ['#E6E6FA', '#DDA0DD'], text: "Sala de Jantar" },
-                { colors: ['#F0F8FF', '#B0C4DE'], text: "Sala de TV" },
-                { colors: ['#E0FFFF', '#AFEEEE'], text: "Cozinha Moderna" },
-                { colors: ['#FFDAB9', '#F4A460'], text: "Quarto Principal" },
-                { colors: ['#F0FFF0', '#90EE90'], text: "Quarto de Hóspedes" },
-                { colors: ['#F8F8FF', '#D8BFD8'], text: "Banheiro Suíte" },
-                { colors: ['#FFEBCD', '#DAA520'], text: "Banheiro Social" },
-                { colors: ['#F5DEB3', '#D2B48C'], text: "Despensa Organizada" },
-                { colors: ['#F0FFF0', '#8FBC8F'], text: "Lavanderia" },
-                { colors: ['#F0FFFF', '#ADD8E6'], text: "Lavabo Elegante" }
-            ];
-
-            const config = roomConfigs[roomIndex] || { colors: ['#5F9EA0', '#4682B4'], text: `Cômodo ${roomIndex}` };
-
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, config.colors[0]);
-            gradient.addColorStop(1, config.colors[1]);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.5, '#98FB98');
+            gradient.addColorStop(1, '#90EE90');
+
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.font = 'Bold 150px Arial';
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.font = 'Bold 100px Arial';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(config.text, canvas.width / 2, canvas.height / 2);
+            ctx.fillText(`Sala ${currentRoom}`, canvas.width / 2, canvas.height / 2);
 
             return new THREE.CanvasTexture(canvas);
         }
 
-        function setupEventListeners() {
+        // ========== CONTROLES OTIMIZADOS PARA SAFARI E TOUCH PRECISO ========== 
+        function setupControls() {
             const viewer = document.getElementById('viewer');
-            viewer.addEventListener('mousedown', onMouseDown);
-            viewer.addEventListener('mousemove', onMouseMove);
-            viewer.addEventListener('mouseup', onMouseUp);
-            viewer.addEventListener('mouseout', onMouseUp);
-            viewer.addEventListener('wheel', onMouseWheel);
-
-            viewer.addEventListener('touchstart', onTouchStart);
-            viewer.addEventListener('touchmove', onTouchMove);
-            viewer.addEventListener('touchend', onTouchEnd);
-
-            window.addEventListener('resize', onWindowResize);
-
-            // Sistema de zoom/pan da planta baixa
-            const planImage = document.getElementById('humanized-plan-image');
-            const planImageContainer = document.getElementById('humanized-plan-image-container');
             
-            let scale = 1;
-            let translateX = 0;
-            let translateY = 0;
             let isDragging = false;
-            let startX = 0;
-            let startY = 0;
-
-            function updateImageTransform() {
-                planImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-                updateHotspotPositions();
+            let touchStartTime = 0;
+            let touchStartX = 0, touchStartY = 0;
+            let lastTouchTime = 0;
+            
+            // FUNÇÃO PRECISA DE DETECÇÃO DE HOTSPOT
+            function detectHotspotTouch(clientX, clientY) {
+                try {
+                    if (!raycaster || !mouse || !hotspotSystem || !hotspotSystem.hotspots) return false;
+                    
+                    const rect = viewer.getBoundingClientRect();
+                    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+                    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+                    
+                    raycaster.setFromCamera(mouse, camera);
+                    
+                    const hotspotMeshes = [];
+                    hotspotSystem.hotspots.forEach(hotspot => {
+                        if (hotspot && hotspot.marker) {
+                            hotspotMeshes.push(hotspot.marker);
+                        }
+                        if (hotspot && hotspot.ring) {
+                            hotspotMeshes.push(hotspot.ring);
+                        }
+                    });
+                    
+                    if (hotspotMeshes.length === 0) return false;
+                    
+                    const intersects = raycaster.intersectObjects(hotspotMeshes);
+                    
+                    if (intersects.length > 0) {
+                        const intersectedObject = intersects[0].object;
+                        
+                        let hotspotData = null;
+                        if (intersectedObject.userData && intersectedObject.userData.hotspotData) {
+                            hotspotData = intersectedObject.userData.hotspotData;
+                        } else {
+                            for (let hotspot of hotspotSystem.hotspots) {
+                                if ((hotspot.ring === intersectedObject || hotspot.marker === intersectedObject) && hotspot.data) {
+                                    hotspotData = hotspot.data;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hotspotData && hotspotData.target !== undefined) {
+                            console.log(`🎯 Hotspot ativado: ${hotspotData.label}`);
+                            
+                            // Feedback tátil
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
+                            
+                            // Animação visual
+                            if (intersectedObject.scale) {
+                                const originalScale = intersectedObject.scale.clone();
+                                intersectedObject.scale.set(1.5, 1.5, 1.5);
+                                setTimeout(() => {
+                                    intersectedObject.scale.copy(originalScale);
+                                }, 150);
+                            }
+                            
+                            // Navegar
+                            changeRoom(hotspotData.target);
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro detecção hotspot:', error);
+                }
+                return false;
             }
-
-            function applyTransform() {
-                planImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-                updateHotspotPositions();
-            }
-
-            // ZOOM COM MOUSE WHEEL
-            planImage.addEventListener('wheel', (e) => {
-                e.preventDefault();
+            
+            // ============= EVENTOS TOUCH OTIMIZADOS PARA SAFARI ============= 
+            viewer.addEventListener('touchstart', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
                 
-                const zoomSpeed = 0.1;
-                const rect = planImageContainer.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const currentTime = Date.now();
+                    
+                    // Prevenir double-tap rápido
+                    if (currentTime - lastTouchTime < 100) {
+                        e.preventDefault();
+                        return;
+                    }
+                    lastTouchTime = currentTime;
+                    
+                    isDragging = false;
+                    isMouseDown = true;
+                    touchStartTime = currentTime;
+                    
+                    touchStartX = mouseX = touch.clientX;
+                    touchStartY = mouseY = touch.clientY;
+                    
+                    console.log(`📱 Touch start Safari: (${touch.clientX}, ${touch.clientY})`);
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            viewer.addEventListener('touchmove', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
                 
-                if (e.deltaY < 0) {
-                    scale = Math.min(scale * (1 + zoomSpeed), 3);
-                } else {
-                    scale = Math.max(scale * (1 - zoomSpeed), 0.5);
+                if (e.touches.length === 1 && isMouseDown) {
+                    const touch = e.touches[0];
+                    
+                    const deltaX = Math.abs(touch.clientX - touchStartX);
+                    const deltaY = Math.abs(touch.clientY - touchStartY);
+                    
+                    // Detecção de movimento mais sensível
+                    if (deltaX > 3 || deltaY > 3) {
+                        isDragging = true;
+                        
+                        const rotX = touch.clientX - mouseX;
+                        const rotY = touch.clientY - mouseY;
+                        
+                        targetRotationY += rotX * 0.005;
+                        targetRotationX += rotY * 0.005;
+                        targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationX));
+                        
+                        mouseX = touch.clientX;
+                        mouseY = touch.clientY;
+                    }
+                    
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            viewer.addEventListener('touchend', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
+                
+                if (e.changedTouches.length === 1) {
+                    const touch = e.changedTouches[0];
+                    const touchDuration = Date.now() - touchStartTime;
+                    const deltaX = Math.abs(touch.clientX - touchStartX);
+                    const deltaY = Math.abs(touch.clientY - touchStartY);
+                    
+                    // TAP PRECISO - sem delay
+                    if (!isDragging && touchDuration < 500 && deltaX < 10 && deltaY < 10) {
+                        console.log(`📱 TAP PRECISO Safari: (${touch.clientX}, ${touch.clientY})`);
+                        
+                        // Executar imediatamente sem setTimeout
+                        const activated = detectHotspotTouch(touch.clientX, touch.clientY);
+                        if (!activated) {
+                            console.log("❌ Nenhum hotspot no toque");
+                        }
+                        e.preventDefault();
+                    }
                 }
                 
-                applyTransform();
-            });
-
-            // ARRASTAR A IMAGEM
-            planImage.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                startX = e.clientX - translateX;
-                startY = e.clientY - translateY;
-                planImage.style.cursor = 'grabbing';
+                isDragging = false;
+                isMouseDown = false;
+            }, { passive: false });
+            
+            // ============= EVENTOS MOUSE DESKTOP ============= 
+            viewer.addEventListener('mousedown', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
+                
                 e.preventDefault();
-            });
-
-            planImage.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-
-                    translateX = dx;
-                    translateY = dy;
-
-                    const currentWidth = planImage.naturalWidth * scale;
-                    const currentHeight = planImage.naturalHeight * scale;
-                    const containerWidth = planImageContainer.clientWidth;
-                    const containerHeight = planImageContainer.clientHeight;
-
-                    const maxMoveX = Math.max(0, (currentWidth - containerWidth) / 2 + 100);
-                    const maxMoveY = Math.max(0, (currentHeight - containerHeight) / 2 + 100);
-                    
-                    translateX = Math.max(-maxMoveX, Math.min(maxMoveX, translateX));
-                    translateY = Math.max(-maxMoveY, Math.min(maxMoveY, translateY));
-                    
-                    applyTransform();
-                }
-            });
-
-            planImage.addEventListener('mouseup', () => {
                 isDragging = false;
-                planImage.style.cursor = 'grab';
-            });
-
-            planImage.addEventListener('mouseleave', () => {
-                isDragging = false;
-                planImage.style.cursor = 'grab';
-            });
-
-            // Quando a imagem carregar, cria os hotspots
-            planImage.onload = () => {
-                createHumanizedPlanHotspots();
-            };
-            if (planImage.complete) {
-                createHumanizedPlanHotspots();
-            }
-        }
-
-        function updateHotspotPositions(scale, translateX, translateY) {
-            const planImage = document.getElementById('humanized-plan-image');
-            const planImageContainer = document.getElementById('humanized-plan-image-container');
-            
-            if (!planImage || !planImageContainer) return;
-            
-            const containerRect = planImageContainer.getBoundingClientRect();
-            const imageRect = planImage.getBoundingClientRect();
-            
-            humanizedPlanHotspotPositions.forEach((pos, index) => {
-                const hotspot = document.querySelector(`.room-hotspot-on-plan[data-room-index="${index}"]`);
-                if (!hotspot) return;
-                
-                const imageWidth = planImage.naturalWidth * scale;
-                const imageHeight = planImage.naturalHeight * scale;
-                
-                const relativeX = (pos.x / 100) * imageWidth;
-                const relativeY = (pos.y / 100) * imageHeight;
-                
-                const finalX = imageRect.left - containerRect.left + relativeX;
-                const finalY = imageRect.top - containerRect.top + relativeY;
-                
-                hotspot.style.left = `${finalX}px`;
-                hotspot.style.top = `${finalY}px`;
-            });
-        }
-
-        function createHumanizedPlanHotspots() {
-            const planImageContainer = document.getElementById('humanized-plan-image-container');
-            document.querySelectorAll('.room-hotspot-on-plan').forEach(hotspot => hotspot.remove());
-
-            humanizedPlanHotspotPositions.forEach((pos, index) => {
-                const hotspot = document.createElement('div');
-                hotspot.classList.add('room-hotspot-on-plan');
-                hotspot.setAttribute('data-room-index', index);
-                
-                const planImage = document.getElementById('humanized-plan-image');
-                const containerRect = planImageContainer.getBoundingClientRect();
-                const imageRect = planImage.getBoundingClientRect();
-                
-                const imageWidth = planImage.naturalWidth;
-                const imageHeight = planImage.naturalHeight;
-                
-                const relativeX = (pos.x / 100) * imageWidth;
-                const relativeY = (pos.y / 100) * imageHeight;
-                
-                const finalX = imageRect.left - containerRect.left + relativeX;
-                const finalY = imageRect.top - containerRect.top + relativeY;
-                
-                hotspot.style.left = `${finalX}px`;
-                hotspot.style.top = `${finalY}px`;
-                
-                hotspot.title = pos.name;
-                hotspot.onclick = () => changeRoom(index);
-                
-                planImageContainer.appendChild(hotspot);
-            });
-        }
-
-        function onMouseDown(event) {
-            if (vrMobileEnabled) return; // Desabilita mouse quando VR está ativo
-            
-            isMouseDown = true;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-            document.getElementById('viewer').style.cursor = 'grabbing';
-        }
-
-        function onMouseMove(event) {
-            if (!isMouseDown || vrMobileEnabled) return;
-            
-            const deltaX = event.clientX - mouseX;
-            const deltaY = event.clientY - mouseY;
-            
-            targetRotationY += deltaX * 0.005;
-            targetRotationX += deltaY * 0.005;
-            
-            targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationX));
-            
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-        }
-
-        function onMouseUp() {
-            isMouseDown = false;
-            document.getElementById('viewer').style.cursor = 'grab';
-        }
-
-        function onMouseWheel(event) {
-            event.preventDefault();
-            camera.fov += event.deltaY * 0.05;
-            camera.fov = Math.max(10, Math.min(100, camera.fov));
-            camera.updateProjectionMatrix();
-        }
-
-        let touchStartX = 0, touchStartY = 0;
-        let initialFov = camera ? camera.fov : 75;
-
-        function onTouchStart(event) {
-            if (vrMobileEnabled) return; // Desabilita touch quando VR está ativo
-            
-            if (event.touches.length === 1) {
-                const touch = event.touches[0];
-                mouseX = touch.clientX;
-                mouseY = touch.clientY;
                 isMouseDown = true;
-            }
-        
-            event.preventDefault();
-        }
-
-        function onTouchMove(event) {
-            if (vrMobileEnabled) return; // Desabilita touch quando VR está ativo
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                
+                viewer.style.cursor = 'grabbing';
+            });
             
-            if (event.touches.length === 1 && isMouseDown) {
-                event.preventDefault();
-                const touch = event.touches[0];
+            viewer.addEventListener('mousemove', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
                 
-                const deltaX = touch.clientX - mouseX;
-                const deltaY = touch.clientY - mouseY;
+                if (isMouseDown) {
+                    const deltaX = Math.abs(e.clientX - mouseX);
+                    const deltaY = Math.abs(e.clientY - mouseY);
+                    
+                    if (deltaX > 2 || deltaY > 2) {
+                        isDragging = true;
+                    }
+                    
+                    const rotX = e.clientX - mouseX;
+                    const rotY = e.clientY - mouseY;
+                    
+                    targetRotationY += rotX * 0.005;
+                    targetRotationX += rotY * 0.005;
+                    targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationX));
+                    
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+            });
+            
+            viewer.addEventListener('mouseup', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
                 
-                targetRotationY += deltaX * 0.005;
-                targetRotationX += deltaY * 0.005;
+                e.preventDefault();
                 
-                targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationX));
+                if (!isDragging) {
+                    console.log(`🖱️ CLIQUE Safari: (${e.clientX}, ${e.clientY})`);
+                    const activated = detectHotspotTouch(e.clientX, e.clientY);
+                    if (!activated) {
+                        console.log("❌ Nenhum hotspot no clique");
+                    }
+                }
                 
-                mouseX = touch.clientX;
-                mouseY = touch.clientY;
-            }
+                isDragging = false;
+                isMouseDown = false;
+                viewer.style.cursor = 'grab';
+            });
+            
+            // Zoom
+            viewer.addEventListener('wheel', (e) => {
+                if (vrSystem && vrSystem.isVRActive) return;
+                e.preventDefault();
+                camera.fov += e.deltaY * 0.05;
+                camera.fov = Math.max(10, Math.min(100, camera.fov));
+                camera.updateProjectionMatrix();
+            }, { passive: false });
+
+            // Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            console.log("✅ Controles Safari otimizados configurados!");
         }
 
-        function onTouchEnd(event) {
-            isMouseDown = false;
-            delete event.target.dataset.initialPinchX1;
-            delete event.target.dataset.initialPinchY1;
-            delete event.target.dataset.initialPinchX2;
-            delete event.target.dataset.initialPinchY2;
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            updateResponsiveElements();
-        }
-        
-        function updateResponsiveElements() {
-            createHotspots();
-        }
-        
         function animate() {
-            requestAnimationFrame(animate);
+            try {
+                requestAnimationFrame(animate);
 
-            if (autoRotate && !vrMobileEnabled) {
-                targetRotationY += 0.005;
+                // Rotação suave se VR não ativo
+                if (!vrSystem || !vrSystem.isVRActive) {
+                    rotationX += (targetRotationX - rotationX) * 0.1;
+                    rotationY += (targetRotationY - rotationY) * 0.1;
+
+                    camera.rotation.order = 'YXZ';
+                    camera.rotation.y = rotationY;
+                    camera.rotation.x = rotationX;
+                    camera.rotation.z = 0;
+                }
+
+                // Animar hotspots
+                if (hotspotSystem && hotspotSystem.hotspots) {
+                    hotspotSystem.animate();
+                }
+
+                // Renderizar se não em modo estéreo
+                if (!vrSystem || vrSystem.currentMode !== 'stereo') {
+                    renderer.render(scene, camera);
+                }
+            } catch (error) {
+                console.error('Erro animação:', error);
             }
-
-            // Suavização mais lenta para VR mobile
-            const lerpSpeed = vrMobileEnabled ? 0.05 : 0.1;
-            
-            rotationX += (targetRotationX - rotationX) * lerpSpeed;
-            rotationY += (targetRotationY - rotationY) * lerpSpeed;
-
-            const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-            euler.set(rotationX, rotationY, 0);
-            camera.setRotationFromEuler(euler);
-
-            renderer.render(scene, camera);
         }
 
-        function toggleAutoRotate() {
-            if (!vrMobileEnabled) {
-                autoRotate = !autoRotate;
+        function changeRoom(index) {
+            try {
+                if (index >= 0 && index < rooms.length && index !== currentRoom) {
+                    console.log(`🚪 Mudando para sala ${index}`);
+                    currentRoom = index;
+                    
+                    createEnvironment();
+                    updateRoomInfo();
+                    resetView();
+                    updateFloorPlanCurrentRoom(currentRoom);
+                    
+                    // Criar hotspots após delay menor
+                    if (hotspotSystem) {
+                        setTimeout(() => {
+                            try {
+                                hotspotSystem.createHotspots(currentRoom);
+                                console.log(`✅ Hotspots criados para sala ${index}`);
+                            } catch (error) {
+                                console.error('Erro criar hotspots:', error);
+                            }
+                        }, 300); // Reduzido de 500 para 300
+                    }
+                }
+            } catch (error) {
+                console.error('Erro mudar sala:', error);
             }
+        }
+
+        function updateRoomInfo() {
+            document.querySelector('.room-title').textContent = '';
+            document.querySelector('.room-description').textContent = '';
         }
 
         function resetView() {
-            if (vrMobileEnabled) {
-                calibrateVRMobile();
-            } else {
+            if (!vrSystem || !vrSystem.isVRActive) {
                 targetRotationX = 0;
                 targetRotationY = 0;
                 camera.fov = 75;
@@ -1844,402 +2415,164 @@
             }
         }
 
-        function changeRoom(index) {
-            if (index >= 0 && index < rooms.length) {
-                console.log(`Mudando para o cômodo ${index}: ${rooms[index].name}`);
-                currentRoom = index;
-                createPanoramaSphere();
-                updateRoomInfo(index);
-                resetView();
-                createHotspots();
-                hideHumanizedPlanModal(); 
-            }
-        }
-
-        function updateRoomInfo(index) {
-            const roomTitle = document.querySelector('.room-title');
-            const roomDescription = document.querySelector('.room-description');
-            if (roomTitle) roomTitle.innerText = rooms[index].name;
-            if (roomDescription) roomDescription.innerText = rooms[index].description;
-        }
-
-        function createNavigationArrows() {
-            console.log("=== CRIANDO SETAS DE NAVEGAÇÃO FIXAS ===");
-            
-            document.querySelectorAll('.nav-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.fixed-nav-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.test-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.multi-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.static-nav-arrow').forEach(arrow => arrow.remove());
-
-            const currentHotspots = hotspots[currentRoom];
-            console.log(`Cômodo atual: ${currentRoom} (${rooms[currentRoom].name})`);
-            console.log('Hotspots disponíveis:', currentHotspots);
-            
-            if (!currentHotspots || currentHotspots.length === 0) {
-                console.log('❌ Nenhum hotspot encontrado para este cômodo');
-                return;
-            }
-
-            const fixedPositions = [
-                { 
-                    position: 'top: 600px; left: 50%; margin-left: -30px;',
-                    icon: '<img src="botao.webp" alt="Seta para cima" style="width: 20px; height: 20px; border-radius: 50%;">',
-                    name: 'topo'
-                },
-                { 
-                    position: 'top: 120px; right: 120px;',
-                    icon: '↗',
-                    name: 'topo-direita'
-                },
-                { 
-                    position: 'top: 50%; right: 60px; margin-top: -30px;',
-                    icon: '→',
-                    name: 'direita'
-                },
-                { 
-                    position: 'bottom: 120px; right: 120px;',
-                    icon: '↘',
-                    name: 'baixo-direita'
-                },
-                { 
-                    position: 'bottom: 80px; left: 50%; margin-left: -30px;',
-                    icon: '↓',
-                    name: 'baixo'
-                },
-                { 
-                    position: 'bottom: 120px; left: 120px;',
-                    icon: '↙',
-                    name: 'baixo-esquerda'
-                },
-                { 
-                    position: 'top: 50%; left: 60px; margin-top: -30px;',
-                    icon: '←',
-                    name: 'esquerda'
-                },
-                { 
-                    position: 'top: 120px; left: 120px;',
-                    icon: '↖',
-                    name: 'topo-esquerda'
-                }
-            ];
-
-            currentHotspots.forEach((hotspotData, index) => {
-                if (index < fixedPositions.length) {
-                    const arrow = document.createElement('div');
-                    arrow.innerHTML = fixedPositions[index].icon;
-                    arrow.className = 'static-nav-arrow';
-                    arrow.title = `Ir para ${hotspotData.label}`;
-                    
-                    arrow.style.cssText = `
-                        position: fixed !important;
-                        ${fixedPositions[index].position}
-                        width: 30px !important;
-                        height: 30px !important;
-                        background: rgba(128, 128, 128, 0.9) !important;
-                        border: 3px solid rgba(255, 255, 255, 0.9) !important;
-                        border-radius: 50% !important;
-                        cursor: pointer !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                        color: #fff !important;
-                        font-size: 28px !important;
-                        z-index: 99999 !important;
-                        pointer-events: auto !important;
-                        box-shadow: 0 4px 15px rgba(128, 128, 128, 0.4) !important;
-                        transition: all 0.3s ease !important;
-                        transform: none !important;
-                        animation: none !important;
-                    `;
-                    
-                    arrow.addEventListener('mouseenter', function() {
-                        this.style.background = 'rgba(160, 160, 160, 1) !important';
-                        this.style.transform = 'scale(1.1) !important';
-                        this.style.boxShadow = '0 6px 20px rgba(160, 160, 160, 0.6) !important';
-                    });
-                    
-                    arrow.addEventListener('mouseleave', function() {
-                        this.style.background = 'rgba(128, 128, 128, 0.9) !important';
-                        this.style.transform = 'scale(1) !important';
-                        this.style.boxShadow = '0 4px 15px rgba(128, 128, 128, 0.4) !important';
-                    });
-                    
-                    arrow.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log(`🎯 Clicando na seta ${fixedPositions[index].name} para ir para: ${hotspotData.label}`);
-                        changeRoom(hotspotData.target);
-                    };
-                    
-                    document.body.appendChild(arrow);
-                    console.log(`✅ Seta ${index + 1} criada na posição ${fixedPositions[index].name} para ${hotspotData.label}`);
-                }
-            });
-
-            console.log(`✅ TOTAL: ${currentHotspots.length} setas FIXAS criadas para ${rooms[currentRoom].name}`);
-        }
-
-        function createNavigationButtons() {
-            const container = document.getElementById('nav-buttons-container');
-            if (!container) return;
-            
-            container.innerHTML = '';
-
-            const currentHotspots = hotspots[currentRoom];
-            if (currentHotspots && currentHotspots.length > 0) {
-                currentHotspots.forEach(hotspotData => {
-                    const button = document.createElement('button');
-                    button.classList.add('nav-btn');
-                    button.innerText = hotspotData.label;
-                    button.onclick = () => changeRoom(hotspotData.target);
-                    container.appendChild(button);
-                });
-                
-                document.getElementById('navigation-panel').style.display = 'flex';
-                console.log(`Criados ${currentHotspots.length} botões de navegação para ${rooms[currentRoom].name}`);
-            } else {
-                document.getElementById('navigation-panel').style.display = 'none';
-                console.log(`Nenhuma navegação disponível para ${rooms[currentRoom].name}`);
-            }
-        }
-
-        function createHotspots() {
-            createNavigationArrows();
-            createNavigationButtons();
-        }
-
-        function takeScreenshot() {
-            if (renderer) {
-                try {
-                    const imgData = renderer.domElement.toDataURL("image/png");
-                    const link = document.createElement('a');
-                    link.href = imgData;
-                    link.download = `TourVirtual360_Room${currentRoom + 1}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } catch (e) {
-                    alert("Seu navegador pode não suportar a captura de tela diretamente ou a imagem 360° pode estar em um domínio diferente. Tente um print da tela.");
-                    console.error("Erro ao capturar tela:", e);
-                }
-            }
-        }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => {
-                    console.error(`Error attempting to enable full-screen mode: ${e.message} (${e.name})`);
-                });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-            }
-        }
-
-        function toggleHumanizedPlan() {
-            const humanizedPlanOverlay = document.getElementById('humanized-plan-overlay');
-            if (humanizedPlanOverlay.classList.contains('visible')) {
-                humanizedPlanOverlay.classList.remove('visible');
-            } else {
-                humanizedPlanOverlay.classList.add('visible');
-                const planImage = document.getElementById('humanized-plan-image');
-                planImage.style.transform = `translate(0px, 0px) scale(1)`;
-                scale = 1;
-                translateX = 0;
-                translateY = 0;
-            }
-        }
-
-        function hideHumanizedPlanModal() {
-            const humanizedPlanOverlay = document.getElementById('humanized-plan-overlay');
-            if (humanizedPlanOverlay) {
-                humanizedPlanOverlay.classList.remove('visible');
-            } else {
-                console.warn("Elemento 'humanized-plan-overlay' não encontrado ao tentar fechar o modal.");
-            }
-        }
-
-        let ambientSound;
-        let soundEnabled = true;
-
-        function playAmbientSound() {
-            if (ambientSound) {
-                ambientSound.stop();
-                ambientSound.disconnect();
-            }
-
-            const audioContext = THREE.AudioContext.getContext();
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-
-            ambientSound = new THREE.Audio(new THREE.AudioListener());
-            const audioLoader = new THREE.AudioLoader();
-            audioLoader.load('ambient_sound.mp3', function(buffer) {
-                ambientSound.setBuffer(buffer);
-                ambientSound.setLoop(true);
-                ambientSound.setVolume(0.5);
-                if (soundEnabled) {
-                    ambientSound.play();
-                }
-            }, undefined, function(error) {
-                console.error('Erro ao carregar o áudio ambiente:', error);
-            });
-        }
-
-        function stopAmbientSound() {
-            if (ambientSound && ambientSound.isPlaying) {
-                ambientSound.stop();
-            }
-        }
-
-        function toggleAmbientSound() {
-            soundEnabled = !soundEnabled;
-            if (soundEnabled) {
-                playAmbientSound();
-            } else {
-                stopAmbientSound();
-            }
-        }
-
-        function showHelp() {
-            const helpOverlay = document.getElementById('help-overlay');
-            helpOverlay.classList.add('visible');
-        }
-
-        function showMoreInfoModal() {
-            const moreInfoOverlay = document.getElementById('more-info-overlay');
-            moreInfoOverlay.classList.add('visible');
-            hideHumanizedPlanModal();
-            hideHelpModal();
-        }
-
-        function hideMoreInfoModal() {
-            const moreInfoOverlay = document.getElementById('more-info-overlay');
-            moreInfoOverlay.classList.remove('visible');
-        }
-
-        function startVrMode() {
-            alert('Modo de Realidade Virtual (VR) em desenvolvimento! Em breve você poderá experimentar.');
-        }
-
-        function hideHelpModal() {
-            const helpOverlay = document.getElementById('help-overlay');
-            helpOverlay.classList.remove('visible');
-        }
-
-        // Inicialização do Tour
+        // ============= INICIALIZAÇÃO PRINCIPAL =============
         document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM carregado");
+            console.log("📱 DOM Safari carregado");
             
-            const startTourBtn = document.getElementById('start-tour-btn');
-            
-            if (!startTourBtn) {
-                console.error("Botão de iniciar tour não encontrado!");
+            if (typeof THREE === 'undefined') {
+                console.error("❌ THREE.js não carregou!");
+                alert("Erro: THREE.js não foi carregado.");
                 return;
             }
             
-            console.log("Botão encontrado, adicionando evento");
+            const startBtn = document.getElementById('start-tour-btn');
+            if (!startBtn) {
+                console.error("❌ Botão iniciar não encontrado!");
+                return;
+            }
             
-            startTourBtn.addEventListener('click', () => {
-                console.log("Botão clicado - iniciando tour");
+            // Touch events para Safari
+            startBtn.addEventListener('click', startTour);
+            startBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startTour();
+            }, { passive: false });
+            
+            function startTour() {
+                console.log("🎬 Iniciando tour Safari...");
                 
-                const splashScreen = document.getElementById('splash-screen');
+                const splash = document.getElementById('splash-screen');
                 const container = document.getElementById('container');
                 
-                if (!splashScreen || !container) {
-                    console.error("Elementos splash-screen ou container não encontrados!");
-                    return;
+                if (splash) {
+                    splash.style.opacity = '0';
+                    splash.style.visibility = 'hidden';
+                    splash.classList.add('hidden');
                 }
                 
-                splashScreen.style.opacity = '0';
-                splashScreen.style.visibility = 'hidden';
-                splashScreen.classList.add('hidden');
-                console.log("Splash screen ocultada");
-
-                container.style.display = 'block'; 
-                container.style.zIndex = '1';
-                console.log("Container mostrado");
+                if (container) {
+                    container.style.display = 'block';
+                }
                 
                 setTimeout(() => {
-                    console.log("Iniciando tour após delay...");
                     try {
                         init();
-                        updateRoomInfo(currentRoom);
+                        updateRoomInfo();
                         
-                        // Aguarda mais um pouco antes de criar as setas
                         setTimeout(() => {
-                            createHotspots(); // Cria setas e botões de navegação
-                            console.log("Setas e botões criados após inicialização");
+                            if (hotspotSystem) {
+                                console.log(`🔧 Criando hotspots sala ${currentRoom}`);
+                                hotspotSystem.createHotspots(currentRoom);
+                                console.log("✅ Hotspots Safari criados!");
+                            }
                         }, 1000);
                         
-                        if (soundEnabled) playAmbientSound();
-                        console.log("Tour inicializado com sucesso!");
                     } catch (error) {
-                        console.error("Erro ao inicializar tour:", error);
+                        console.error("❌ Erro inicialização Safari:", error);
+                        alert("Erro ao inicializar o tour virtual.");
                     }
-                }, 500);
+                }, 300);
+            }
+            
+            // Eventos fullscreen para Safari
+            const fullscreenEvents = [
+                'fullscreenchange',
+                'webkitfullscreenchange',
+                'mozfullscreenchange',
+                'MSFullscreenChange'
+            ];
+            
+            fullscreenEvents.forEach(eventName => {
+                document.addEventListener(eventName, () => {
+                    const isFullscreen = document.fullscreenElement || 
+                                       document.webkitFullscreenElement || 
+                                       document.mozFullScreenElement || 
+                                       document.msFullscreenElement;
+                    
+                    if (!isFullscreen && vrSystem && vrSystem.isVRActive) {
+                        vrSystem.exitVR();
+                    }
+                });
             });
-
-            // Prevenir zoom e scroll em dispositivos móveis durante VR
-            document.addEventListener('touchstart', (e) => {
-                if (vrMobileEnabled) {
-                    if (e.touches.length > 1) {
-                        e.preventDefault(); // Previne zoom com 2 dedos
-                    }
-                }
-            }, { passive: false });
-
-            document.addEventListener('touchmove', (e) => {
-                if (vrMobileEnabled) {
-                    e.preventDefault(); // Previne scroll durante VR
-                }
-            }, { passive: false });
-
-            document.addEventListener('touchend', (e) => {
-                if (vrMobileEnabled) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
         });
 
-        function showSplashScreen() {
-            const splashScreen = document.getElementById('splash-screen');
-            splashScreen.classList.remove('hidden');
-            splashScreen.style.opacity = '1';
-            splashScreen.style.visibility = 'visible';
-            document.getElementById('container').style.display = 'none';
-            
-            // Esconde o painel de navegação
-            const navPanel = document.getElementById('navigation-panel');
-            if (navPanel) {
-                navPanel.style.display = 'none';
-            }
-            
-            // Remove TODAS as setas
-            document.querySelectorAll('.nav-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.fixed-nav-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.test-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.multi-arrow').forEach(arrow => arrow.remove());
-            document.querySelectorAll('.static-nav-arrow').forEach(arrow => arrow.remove());
-            
-            // Remove qualquer hotspot antigo
-            document.querySelectorAll('.nav-hotspot').forEach(hotspot => hotspot.remove());
-            
-            // Desativa VR Mobile se estiver ativo
-            if (vrMobileEnabled) {
-                toggleVRMobile();
-            }
-            
-            if (renderer) {
-                renderer.dispose();
-                document.getElementById('viewer').innerHTML = '';
-            }
-            stopAmbientSound();
-        }
+        // ============= SISTEMA TOUCH MELHORADO PARA SAFARI =============
+        (function(){
+            if (!window.__safariTouchHandlerAdded) {
+                window.__safariTouchHandlerAdded = true;
+                
+                // Touch handler específico para hotspots 3D no Safari
+                window.addEventListener('touchend', function(event) {
+                    if (event.changedTouches.length !== 1 || !window.camera || !window.hotspotSystem) return;
+                    
+                    // Ignorar toques em elementos UI
+                    if (event.target.closest('.floor-plan-menu, .floor-plan-toggle, .vr-button, .vr-selection-screen, .plan-hotspot')) {
+                        return;
+                    }
+                    
+                    const touch = event.changedTouches[0];
+                    const touchX = (touch.clientX / window.innerWidth) * 2 - 1;
+                    const touchY = -(touch.clientY / window.innerHeight) * 2 + 1;
+                    const pointer = new THREE.Vector2(touchX, touchY);
+                    const raycaster = new THREE.Raycaster();
+                    
+                    // Configurar raycaster para melhor precisão no Safari
+                    raycaster.near = 0.1;
+                    raycaster.far = 1000;
+                    raycaster.params.Points.threshold = 0.1;
+                    
+                    raycaster.setFromCamera(pointer, window.camera);
 
+                    const markers = window.hotspotSystem.hotspots.map(h => h.marker).filter(Boolean);
+                    const rings = window.hotspotSystem.hotspots.map(h => h.ring).filter(Boolean);
+                    const allHotspots = [...markers, ...rings];
+                    
+                    const intersects = raycaster.intersectObjects(allHotspots);
+                    
+                    if (intersects.length > 0) {
+                        const intersectedObject = intersects[0].object;
+                        let hotspotData = null;
+                        
+                        // Buscar dados do hotspot
+                        if (intersectedObject.userData && intersectedObject.userData.hotspotData) {
+                            hotspotData = intersectedObject.userData.hotspotData;
+                        } else {
+                            // Buscar nos hotspots registrados
+                            for (let hotspot of window.hotspotSystem.hotspots) {
+                                if ((hotspot.ring === intersectedObject || hotspot.marker === intersectedObject) && hotspot.data) {
+                                    hotspotData = hotspot.data;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (hotspotData && hotspotData.target !== undefined) {
+                            console.log(`🎯 Safari Touch: ${hotspotData.label}`);
+                            
+                            // Feedback visual imediato
+                            if (intersectedObject.scale) {
+                                intersectedObject.scale.set(1.4, 1.4, 1.4);
+                                setTimeout(() => {
+                                    intersectedObject.scale.set(1, 1, 1);
+                                }, 200);
+                            }
+                            
+                            // Vibração se disponível
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
+                            
+                            // Navegar
+                            window.hotspotSystem.activateHotspot(hotspotData);
+                        }
+                    }
+                }, { passive: true });
+                
+                console.log("✅ Touch handler Safari ativado");
+            }
+        })();
+
+        console.log("📜 Script Safari com touch otimizado carregado!");
     </script>
 </body>
 </html>
